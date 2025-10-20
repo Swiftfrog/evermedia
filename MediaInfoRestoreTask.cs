@@ -105,14 +105,14 @@ namespace EmbyMedia.Plugin
                     IsVirtualItem = false
                 });
 
-                if (items == null || items.Count == 0)
+                if (items == null || items.Length == 0)
                 {
                     _logger.Info("EmbyMedia: No media items found to process");
                     progress.Report(100);
                     return;
                 }
 
-                var totalItems = items.Count;
+                var totalItems = items.Length;
                 var processed = 0;
                 var restoredCount = 0;
                 var errorCount = 0;
