@@ -1,6 +1,8 @@
+using MediaBrowser.Controller.Library; ///IMediaSourceProvider
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Dto; ///MediaSourceInfo
 using System;
 using System.Collections.Generic;
 using System.IO;
