@@ -22,10 +22,6 @@
     <OutputType>Library</OutputType>
   </PropertyGroup>
 
-  <!-- <ItemGroup>
-    <Compile Include="**/*.cs" />  <!-- 移除这一行，使用 SDK 默认行为 -->
-  </ItemGroup> -->
-
   <ItemGroup>
     <!-- Core Emby dependencies -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" PrivateAssets="All" />
