@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Controller; ///IServerApplicationHost
 
 namespace evermedia
 {
