@@ -2,7 +2,6 @@ using MediaBrowser.Controller.Library; ///IMediaSourceProvider
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.Dto; ///MediaSourceInfo
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,12 +23,12 @@ namespace evermedia
 
         public string Name => "evermedia STRM Provider";
 
-        public async Task<IEnumerable<MediaSourceInfo>> GetMediaSources(BaseItem item, CancellationToken cancellationToken)
+        // ✅ 修正返回类型
+        public async Task<List<MediaSourceInfo>> GetMediaSources(BaseItem item, CancellationToken cancellationToken)
         {
             if (item.Path == null || !item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
-                return [];
+                return new List<MediaSourceInfo>();
 
-            // 优先从 .medinfo 恢复
             var backupPath = _mediaInfoService.GetBackupPath(item);
             if (File.Exists(backupPath))
             {
@@ -39,21 +38,25 @@ namespace evermedia
                     var mediaSource = Newtonsoft.Json.JsonConvert.DeserializeObject<MediaSourceInfo>(json);
                     if (mediaSource != null)
                     {
-                        // 修复路径（避免泄露真实路径）
                         mediaSource.Path = item.Path;
                         mediaSource.Protocol = MediaProtocol.File;
                         mediaSource.IsRemote = false;
-                        return [mediaSource];
+                        return new List<MediaSourceInfo> { mediaSource };
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.ErrorException("evermedia: Failed to load .medinfo for {Path}", ex, item.Path);
+                    _logger.ErrorException("evermedia: Failed to load .medinfo", ex);
                 }
             }
 
-            // 兜底：尝试实时 probe（可选，此处省略以提升性能）
-            return [];
+            return new List<MediaSourceInfo>();
+        }
+
+        // ✅ 必须实现 OpenMediaSource（即使不用）
+        public Task<MediaSourceInfo> OpenMediaSource(string openToken, List<ILiveStream> currentLiveStreams, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<MediaSourceInfo>(null);
         }
     }
 }
