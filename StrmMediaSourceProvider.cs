@@ -1,6 +1,6 @@
-using MediaBrowser.Controller.Library; ///IMediaSourceProvider
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Dto;           // 👈 必须：MediaSourceInfo
+using MediaBrowser.Model.LiveTv;       // 👈 必须：ILiveStream
 using MediaBrowser.Model.Logging;
 using System;
 using System.Collections.Generic;
@@ -23,7 +23,7 @@ namespace evermedia
 
         public string Name => "evermedia STRM Provider";
 
-        // ✅ 修正返回类型
+        // ✅ 正确返回 Task<List<MediaSourceInfo>>
         public async Task<List<MediaSourceInfo>> GetMediaSources(BaseItem item, CancellationToken cancellationToken)
         {
             if (item.Path == null || !item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
@@ -39,7 +39,7 @@ namespace evermedia
                     if (mediaSource != null)
                     {
                         mediaSource.Path = item.Path;
-                        mediaSource.Protocol = MediaProtocol.File;
+                        mediaSource.Protocol = MediaBrowser.Model.Entities.MediaProtocol.File;
                         mediaSource.IsRemote = false;
                         return new List<MediaSourceInfo> { mediaSource };
                     }
@@ -53,10 +53,11 @@ namespace evermedia
             return new List<MediaSourceInfo>();
         }
 
-        // ✅ 必须实现 OpenMediaSource（即使不用）
-        public Task<MediaSourceInfo> OpenMediaSource(string openToken, List<ILiveStream> currentLiveStreams, CancellationToken cancellationToken)
+        // ✅ 必须实现 OpenMediaSource，返回 Task<ILiveStream>
+        public Task<ILiveStream> OpenMediaSource(string openToken, List<ILiveStream> currentLiveStreams, CancellationToken cancellationToken)
         {
-            return Task.FromResult<MediaSourceInfo>(null);
+            // STRM 不涉及直播流，返回 null
+            return Task.FromResult<ILiveStream>(null);
         }
     }
 }

@@ -2,7 +2,8 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.MediaEncoding; ///IMediaEncoder
-using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Dto; // MediaSourceInfo
+using MediaBrowser.Model.Entities; // MediaProtocol
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
