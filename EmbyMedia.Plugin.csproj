@@ -1,23 +1,59 @@
-<Project>
-  <!-- 使用 Sdk 元素确保 Directory.Build.props 在项目解析早期被加载 -->
-  <Sdk Name="Microsoft.NET.Sdk" />
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- 可以在这里覆盖 Directory.Build.props 中的属性（如果需要） -->
-    <!-- 例如，指定不同的程序集名称或输出路径 -->
-    <!-- <AssemblyName>EmbyMedia.Plugin</AssemblyName> -->
-    <!-- <RootNamespace>EmbyMedia.Plugin</RootNamespace> -->
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0.0</InformationalVersion>
+    <Configurations>Debug;Release</Configurations>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>AnyCPU</Platforms>
+    <DebugType>portable</DebugType>
+    <BaseIntermediateOutputPath>obj\$(Configuration)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <OutputType>Library</OutputType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 包含项目目录及其子目录下的所有 .cs 源代码文件 -->
     <Compile Include="**/*.cs" />
-    <!-- 如果有其他需要包含在构建中的文件（如配置文件、资源文件等），可以在这里添加 -->
-    <!-- <Content Include="config.json" CopyToOutputDirectory="PreserveNewest" /> -->
-    <!-- <EmbeddedResource Include="Resources\**" /> -->
   </ItemGroup>
 
-  <!-- 注意：NuGet 包引用、目标框架、ILRepack 配置等都由同目录下的 Directory.Build.props 文件提供 -->
-  <!-- 因此在此处无需重复定义 PackageReference 或 Target 标签 -->
+  <ItemGroup>
+    <!-- Core Emby dependencies -->
+    <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" PrivateAssets="All" />
+    <!-- The following might be implicitly included by Server.Core, but explicitly adding for clarity -->
+    <!-- <PackageReference Include="MediaBrowser.Model" Version="4.9.1.80" PrivateAssets="All" /> -->
+    <!-- <PackageReference Include="MediaBrowser.Controller" Version="4.9.1.80" PrivateAssets="All" /> -->
+    <!-- <PackageReference Include="MediaBrowser.Common" Version="4.9.1.80" PrivateAssets="All" /> -->
+    <!-- <PackageReference Include="Emby.Server.Implementations" Version="4.9.1.80" PrivateAssets="All" /> -->
+    <!-- <PackageReference Include="MediaBrowser.MediaEncoding" Version="4.9.1.80" PrivateAssets="All" /> -->
+
+    <!-- ILRepack for merging dependencies -->
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.1" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- ILRepack target, similar to PinyinPlugin -->
+  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <InputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
+      <!-- Add other assemblies to merge if necessary, e.g., if you add a dependency that needs merging -->
+      <!-- <InputAssemblies Include="$(OutputPath)SomeOtherLib.dll" /> -->
+    </ItemGroup>
+    <ILRepack
+      Parallel="true"
+      DebugInfo="true"
+      Internalize="true"
+      InputAssemblies="@(InputAssemblies)"
+      OutputFile="$(OutputPath)$(AssemblyName).dll"
+      LibraryPath="$(OutputPath)"
+    />
+  </Target>
 
 </Project>
