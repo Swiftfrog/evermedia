@@ -53,7 +53,7 @@ namespace EmbyMedia.Plugin
             _logger.Info("EmbyMedia Plugin: Plugin loaded successfully");
             _logger.Info("EmbyMedia Plugin: MediaInfoCustomMetadataProvider registered for Video items");
             _logger.Info("EmbyMedia Plugin: MediaInfoRestoreTask registered as scheduled task");
-            return Task.CompletedTask;
+            /// return Task.CompletedTask;
         }
 
         public void Dispose()
