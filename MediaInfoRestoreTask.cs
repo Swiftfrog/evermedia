@@ -1,3 +1,4 @@
+using MediaBrowser.Controller.Entities; ///for InternalItemsQuery 
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Logging;

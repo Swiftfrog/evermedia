@@ -3,6 +3,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.MediaInfo;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,8 +35,7 @@ namespace evermedia
             {
                 try
                 {
-                    var json = await File.ReadAllTextAsync(backupPath, cancellationToken);
-                    var mediaSource = Newtonsoft.Json.JsonConvert.DeserializeObject<MediaSourceInfo>(json);
+                    var mediaSource = _mediaInfoService.DeserializeFromFile<MediaSourceInfo>(backupPath);
                     if (mediaSource != null)
                     {
                         mediaSource.Path = item.Path;
