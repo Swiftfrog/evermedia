@@ -1,20 +1,34 @@
-using MediaBrowser.Common.Configuration;
-using MediaBrowser.Common.Plugins;
+// EmbyMedia.Plugin.cs
+using MediaBrowser.Common.Configuration; // IApplicationPaths
+using MediaBrowser.Common.Plugins; // IPlugin, BasePlugin
+using MediaBrowser.Model.Plugins; // BasePluginConfiguration
+using MediaBrowser.Model.Serialization; // IXmlSerializer
 using System;
 
 namespace EmbyMedia.Plugin;
 
-public class Plugin : BasePlugin // 继承 BasePlugin
+// 1. 定义一个插件配置类，即使暂时不需要配置项
+public class PluginConfiguration : BasePluginConfiguration
 {
+    // 例如，以后可以添加是否启用 STRM 探测等选项
+    // public bool EnableStrmProbing { get; set; } = true;
+}
+
+// 2. 让 Plugin 继承 BasePlugin<PluginConfiguration> 并实现 IPlugin
+public class Plugin : BasePlugin<PluginConfiguration>, IPlugin // Implement IPlugin for good measure
+{
+    public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer) : base(applicationPaths, xmlSerializer)
+    {
+        // Plugin Instance can be accessed here if needed, though less common in modern plugins
+        // Instance = this; // If you have a static Instance property elsewhere, assign it here
+    }
+
     public override string Name => "EmbyMedia"; // 插件显示名称
 
     public override Guid Id => Guid.Parse("35F12540-9EBD-9146-8E44-5D6D9BD66489"); // 您的唯一插件 GUID
 
-    // 使用 BasePlugin 的无参数构造函数
-    public Plugin() : base() // 调用父类的无参数构造函数
-    {
-        // 如果需要 IApplicationPaths 或 IXmlSerializer，通常它们是通过依赖注入在其他地方（如 Provider 或 Task 的构造函数）获取的，
-        // 或者可以通过 Plugin.Instance.ApplicationPaths 等方式在运行时获取（如果 BasePlugin 提供了这样的属性）。
-        // BasePlugin 本身通常不直接在构造函数中接收这些服务。
-    }
+    public override string Description => "Creates .mediainfo backups for media items and restores them.";
 }
+
+// 注意：移除了之前尝试的 IPluginServiceRegistrator 实现（如果添加过）
+// 因为 BasePlugin<T> 应该能处理服务发现
