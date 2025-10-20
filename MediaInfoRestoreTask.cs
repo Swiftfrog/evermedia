@@ -48,7 +48,7 @@ public class MediaInfoRestoreTask : IScheduledTask
         {
             MediaTypes = new[] { MediaType.Video, MediaType.Audio }, // Include both if needed
             Recursive = true,
-            IsMissing = false // Only items that exist
+            IsVirtualItem = false // Only items that exist
         });
 
         var totalItems = items.Length; // Note: GetItemList returns List<T>, so Count is correct
