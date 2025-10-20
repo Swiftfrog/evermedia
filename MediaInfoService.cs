@@ -8,6 +8,7 @@ using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Serialization;
 using System;
+using System.Collections.Generic; 
 using System.IO;
 using System.Linq;
 using System.Threading;
