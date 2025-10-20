@@ -114,7 +114,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
             {
                 Container = source.Container,
                 RunTimeTicks = source.RunTimeTicks,
-                Size = source.Size,
+                Size = source.Size, // This is long?
                 Bitrate = source.Bitrate,
                 MediaStreams = new List<SerializableMediaStream>(),
                 // Copy other necessary properties, excluding Emby internal IDs
@@ -123,7 +123,8 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                 IsRemote = source.IsRemote,
                 SupportsDirectPlay = source.SupportsDirectPlay,
                 SupportsDirectStream = source.SupportsDirectStream,
-                SupportsTranscoding = source.SupportsTranscoding
+                SupportsTranscoding = source.SupportsTranscoding,
+                ContainerStartTimeTicks = source.ContainerStartTimeTicks // This is long?
                 // Add other properties as needed, but avoid Id, ItemId, ServerId, Path, etc.
             };
 
@@ -170,7 +171,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                     // BlPresentFlag = stream.BlPresentFlag,
                     // DvBlSignalCompatibilityId = stream.DvBlSignalCompatibilityId,
                     Title = stream.Title,
-                    VideoRange = stream.VideoRange,
+                    VideoRange = stream.VideoRange, // Read only, but safe to read for backup
                     // VideoRangeType = stream.VideoRangeType, // Not a property of MediaStream
                     // VideoDoViTitle = stream.VideoDoViTitle, // Not a property of MediaStream
                     RefFrames = stream.RefFrames,
@@ -179,7 +180,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                     IsAnamorphic = stream.IsAnamorphic,
                     AspectRatio = stream.AspectRatio,
                     Index = stream.Index,
-                    Score = stream.Score,
+                    // Score = stream.Score, // Not a property of MediaStream
                     IsExternal = stream.IsExternal,
                     DeliveryMethod = stream.DeliveryMethod,
                     DeliveryUrl = stream.DeliveryUrl,
@@ -290,7 +291,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                 // BlPresentFlag = stream.BlPresentFlag,
                 // DvBlSignalCompatibilityId = stream.DvBlSignalCompatibilityId,
                 Title = stream.Title,
-                VideoRange = stream.VideoRange,
+                // VideoRange = stream.VideoRange, // Read only, cannot assign
                 // VideoRangeType = stream.VideoRangeType, // Not a property of MediaStream
                 // VideoDoViTitle = stream.VideoDoViTitle, // Not a property of MediaStream
                 RefFrames = stream.RefFrames,
@@ -299,7 +300,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                 IsAnamorphic = stream.IsAnamorphic,
                 AspectRatio = stream.AspectRatio,
                 Index = stream.Index,
-                Score = stream.Score,
+                // Score = stream.Score, // Not a property of MediaStream
                 IsExternal = stream.IsExternal,
                 DeliveryMethod = stream.DeliveryMethod,
                 DeliveryUrl = stream.DeliveryUrl,
@@ -325,9 +326,10 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
 
         // Update BaseItem properties
         item.RunTimeTicks = sourceToRestore.RunTimeTicks;
-        item.Size = sourceToRestore.Size;
+        item.Size = sourceToRestore.Size ?? 0; // Handle long? to long conversion
         item.Container = sourceToRestore.Container;
         item.TotalBitrate = sourceToRestore.Bitrate ?? 0; // Fallback to 0 if null
+        item.ContainerStartTimeTicks = sourceToRestore.ContainerStartTimeTicks ?? 0; // Handle long? to long conversion
 
         // Find the default video stream if possible
         var videoStream = mediaStreamsToRestore.FirstOrDefault(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue);
@@ -340,11 +342,14 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
         // Update the BaseItem in the library
         try
         {
-            await _libraryManager.UpdateItems(
-                new List<BaseItem> { item },
-                null, // Update reason
-                ItemUpdateType.MetadataImport,
-                cancellationToken: cancellationToken
+    	    // CORRECTED: Use UpdateItems with correct signature including CancellationToken
+	    // Note: UpdateItems is synchronous (void), so no 'await'
+    	    _libraryManager.UpdateItems(
+                new List<BaseItem> { item }, // items
+                null,                        // parent (can be null if item manages its parent relationship)
+                ItemUpdateType.MetadataImport, // updateReason
+                null,                        // metadataRefreshOptions (if not needed, pass null)
+                cancellationToken            // cancellationToken
             );
             _logger.Info("BaseItem metadata updated for {0} after MediaInfo restore.", item.Path); // 使用 Emby ILogger 的 Info 方法
             return true;
@@ -354,6 +359,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
             _logger.ErrorException("Error updating BaseItem for {0} after MediaInfo restore: {1}", ex, item.Path, ex.Message); // 使用 Emby ILogger 的 ErrorException 方法
             return false;
         }
+
     }
 
     private string GetMediaInfoJsonPath(BaseItem item)
@@ -373,7 +379,7 @@ public class SerializableMediaSourceInfo
 {
     public string? Container { get; set; }
     public long? RunTimeTicks { get; set; }
-    public long? Size { get; set; }
+    public long? Size { get; set; } // Keep as long? for serialization
     public int? Bitrate { get; set; }
     public List<SerializableMediaStream> MediaStreams { get; set; } = new();
     // Add other properties you need to backup, excluding Emby internal IDs
@@ -383,6 +389,7 @@ public class SerializableMediaSourceInfo
     public bool SupportsDirectPlay { get; set; }
     public bool SupportsDirectStream { get; set; }
     public bool SupportsTranscoding { get; set; }
+    public long? ContainerStartTimeTicks { get; set; } // Add this property
 }
 
 public class SerializableMediaStream
@@ -424,7 +431,7 @@ public class SerializableMediaStream
     // public int? BlPresentFlag { get; set; }
     // public int? DvBlSignalCompatibilityId { get; set; }
     public string? Title { get; set; }
-    public string? VideoRange { get; set; }
+    public string? VideoRange { get; set; } // Keep for backup (read-only for original MediaStream)
     // public string? VideoRangeType { get; set; } // Not a property of MediaStream
     // public string? VideoDoViTitle { get; set; } // Not a property of MediaStream
     public int? RefFrames { get; set; }
@@ -433,7 +440,7 @@ public class SerializableMediaStream
     public bool? IsAnamorphic { get; set; }
     public string? AspectRatio { get; set; }
     public int Index { get; set; }
-    public int? Score { get; set; }
+    // public int? Score { get; set; } // Not a property of MediaStream
     public bool IsExternal { get; set; }
     public SubtitleDeliveryMethod? DeliveryMethod { get; set; }
     public string? DeliveryUrl { get; set; }
