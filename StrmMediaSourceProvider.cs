@@ -1,9 +1,9 @@
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
-using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
+using MediaBrowser.Model.Serialization; // 👈 IJsonSerializer
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,12 +15,12 @@ namespace evermedia
     public class StrmMediaSourceProvider : IMediaSourceProvider
     {
         private readonly ILogger _logger;
-        private readonly MediaInfoService _mediaInfoService;
+        private readonly IJsonSerializer _jsonSerializer; // 👈 直接注入
 
-        public StrmMediaSourceProvider(ILogger logger, MediaInfoService mediaInfoService)
+        public StrmMediaSourceProvider(ILogger logger, IJsonSerializer jsonSerializer)
         {
             _logger = logger;
-            _mediaInfoService = mediaInfoService;
+            _jsonSerializer = jsonSerializer;
         }
 
         public string Name => "evermedia STRM Provider";
@@ -30,12 +30,15 @@ namespace evermedia
             if (item.Path == null || !item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
                 return new List<MediaSourceInfo>();
 
-            var backupPath = _mediaInfoService.GetBackupPath(item);
+            // 构造 .medinfo 路径（与 MediaInfoService 一致）
+            var backupPath = Path.ChangeExtension(item.Path, ".medinfo");
+
             if (File.Exists(backupPath))
             {
                 try
                 {
-                    var mediaSource = _mediaInfoService.DeserializeFromFile<MediaSourceInfo>(backupPath);
+                    // ✅ 直接使用 IJsonSerializer 反序列化
+                    var mediaSource = _jsonSerializer.DeserializeFromFile<MediaSourceInfo>(backupPath);
                     if (mediaSource != null)
                     {
                         mediaSource.Path = item.Path;
