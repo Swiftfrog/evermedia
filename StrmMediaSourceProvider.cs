@@ -1,6 +1,7 @@
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Model.Dto;           // 👈 必须：MediaSourceInfo
-using MediaBrowser.Model.LiveTv;       // 👈 必须：ILiveStream
+///using MediaBrowser.Model.LiveTv;       // 👈 必须：ILiveStream
+using MediaBrowser.Controller.Library; /// ILiveStream
 using MediaBrowser.Model.Logging;
 using System;
 using System.Collections.Generic;
