@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- This .csproj file works in conjunction with Directory.Build.props -->
+  <!-- Directory.Build.props provides the common properties, references, and ILRepack target -->
+  <!-- This file just specifies the SDK and includes the source files -->
+  <PropertyGroup>
+    <!-- You can override properties from Directory.Build.props here if needed -->
+    <!-- For example, if you want a different AssemblyName: -->
+    <!-- <AssemblyName>EmbyMedia.Plugin</AssemblyName> -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Include all .cs files in the current directory and subdirectories -->
+    <Compile Include="**/*.cs" />
+    <!-- If you have other file types needed at build time, include them here -->
+    <!-- <Content Include="config.json" /> -->
+  </ItemGroup>
+
+  <!-- No need to define PackageReferences here as they are in Directory.Build.props -->
+  <!-- No need to define ILRepack target here as it is in Directory.Build.props -->
+
+</Project>
