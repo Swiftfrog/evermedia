@@ -24,7 +24,7 @@ namespace EmbyPinyinPlugin
 
         public override string Name => "EmbyMedia";
 
-        public override Guid Id => Guid.Parse("YOUR_UNIQUE_GUID_HERE"); // Make sure you have a unique GUID
+        public override Guid Id => Guid.Parse("91EE5054-84C7-76DF-61BE-CC0A35F6625E"); // Make sure you have a unique GUID
 
         public override string Description => "A custom metadata provider for MediaInfo.";
 
