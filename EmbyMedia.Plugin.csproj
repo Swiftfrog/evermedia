@@ -21,9 +21,9 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Include="**/*.cs" />
-  </ItemGroup>
+//  <ItemGroup>
+//    <Compile Include="**/*.cs" />
+//  </ItemGroup>
 
   <ItemGroup>
     <!-- Core Emby dependencies -->
