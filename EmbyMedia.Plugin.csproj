@@ -1,9 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- 目标框架和主要输出路径 -->
     <TargetFramework>net8.0</TargetFramework>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- 其他属性 -->
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -15,16 +18,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Platforms>AnyCPU</Platforms>
     <DebugType>portable</DebugType>
-    <BaseIntermediateOutputPath>obj\$(Configuration)\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <!-- 移除了 <BaseIntermediateOutputPath> 和 <IntermediateOutputPath> -->
     <OutputType>Library</OutputType>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
+
+  <!-- <ItemGroup>
+    <Compile Include="**/*.cs" />  <!-- 移除这一行，使用 SDK 默认行为 -->
+  </ItemGroup> -->
 
   <ItemGroup>
     <!-- Core Emby dependencies -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" PrivateAssets="All" />
-    <!-- The following might be implicitly included by Server.Core, but explicitly adding for clarity -->
+    <!-- Other potential package references can go here if needed -->
     <!-- <PackageReference Include="MediaBrowser.Model" Version="4.9.1.80" PrivateAssets="All" /> -->
     <!-- <PackageReference Include="MediaBrowser.Controller" Version="4.9.1.80" PrivateAssets="All" /> -->
     <!-- <PackageReference Include="MediaBrowser.Common" Version="4.9.1.80" PrivateAssets="All" /> -->
@@ -35,11 +40,11 @@
     <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.1" PrivateAssets="All" />
   </ItemGroup>
 
-  <!-- ILRepack target, similar to PinyinPlugin -->
+  <!-- ILRepack target -->
   <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <ItemGroup>
       <InputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
-      <!-- Add other assemblies to merge if necessary, e.g., if you add a dependency that needs merging -->
+      <!-- Add other assemblies to merge if necessary -->
       <!-- <InputAssemblies Include="$(OutputPath)SomeOtherLib.dll" /> -->
     </ItemGroup>
     <ILRepack
