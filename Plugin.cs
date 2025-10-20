@@ -1,10 +1,7 @@
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
-using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using MediaBrowser.Model.Logging;
-using System;
 
 namespace evermedia
 {
@@ -27,26 +24,5 @@ namespace evermedia
 
     public class PluginConfiguration : BasePluginConfiguration
     {
-        // 可扩展配置
-    }
-
-    public class PluginEntryPoint : IServerEntryPoint
-    {
-        private readonly ILogger _logger;
-
-        public PluginEntryPoint(ILogger logger)
-        {
-            _logger = logger;
-        }
-
-        public void Run()
-        {
-            _logger.Info("evermedia: Plugin loaded successfully");
-        }
-
-        public void Dispose()
-        {
-            _logger.Info("evermedia: Plugin shutting down");
-        }
     }
 }

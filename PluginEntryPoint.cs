@@ -1,7 +1,6 @@
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
 namespace evermedia
 {
@@ -18,8 +17,8 @@ namespace evermedia
 
         public void Run()
         {
-            // 手动注册服务
             _serviceCollection.AddSingleton<MediaInfoService>();
+            _serviceCollection.AddSingleton<ICustomMetadataProvider<Video>, StrmMetadataProvider>();
             _serviceCollection.AddSingleton<IMediaSourceProvider, StrmMediaSourceProvider>();
             _serviceCollection.AddSingleton<IScheduledTask, MediaInfoRestoreTask>();
 

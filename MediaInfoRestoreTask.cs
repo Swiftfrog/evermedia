@@ -38,11 +38,11 @@ namespace evermedia
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {
-            var items = _libraryManager.GetItemList(new MediaBrowser.Controller.Library.InternalItemsQuery
+            var items = _libraryManager.GetItemList(new InternalItemsQuery
             {
                 MediaTypes = [MediaType.Video],
                 Recursive = true,
-                IsVirtualItem = true // .strm 是虚拟项
+                IsVirtualItem = true
             });
 
             if (items.Length == 0) return;
