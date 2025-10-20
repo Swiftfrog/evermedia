@@ -6,6 +6,7 @@ using MediaBrowser.Controller.Providers; // ICustomMetadataProvider, IHasOrder, 
 using MediaBrowser.Model.Entities; // BaseItem, Video, MetadataResult, ItemUpdateType
 using MediaBrowser.Model.Logging; // ILogger
 using MediaBrowser.Model.Providers; // MetadataResult<T>
+using MediaBrowser.Model.Configuration; //LibraryOptions
 using System;
 using System.Threading;
 using System.Threading.Tasks;

@@ -5,6 +5,8 @@ using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging; // ILogger
+using MediaBrowser.Model.MediaInfo; // MediaProtocol
+using MediaBrowser.Model.Dlna; // SubtitleDeliveryMethod
 using System;
 using System.Collections.Generic;
 using System.IO;
