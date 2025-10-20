@@ -38,9 +38,10 @@ namespace evermedia
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {
+            // 使用 InternalItemsQuery（Emby 4.9）
             var items = _libraryManager.GetItemList(new InternalItemsQuery
             {
-                MediaTypes = [MediaType.Video],
+                MediaTypes = new[] { MediaType.Video },
                 Recursive = true,
                 IsVirtualItem = true
             });
