@@ -1,52 +1,81 @@
-#nullable enable
-
+// Plugin.cs
 using MediaBrowser.Common.Configuration;
-using MediaBrowser.Common.Plugins;
-using MediaBrowser.Model.Plugins;
-using MediaBrowser.Model.Serialization;
-using System;
-using Microsoft.Extensions.DependencyInjection; // You will likely need this using directive
-using MediaBrowser.Controller.Plugins; // For IPluginServiceRegistrator
-using MediaBrowser.Controller.Providers; // For ICustomMetadataProvider
+using MediaBrowser.Common.Plugins; // BasePlugin<T>, IPlugin
+using MediaBrowser.Model.Plugins; // BasePluginConfiguration
+using MediaBrowser.Model.Serialization; // IXmlSerializer
+using System;// --- 新增：用于服务注册 ---
+using MediaBrowser.Common; // IPluginServiceRegistrator
+using Microsoft.Extensions.DependencyInjection; // IServiceCollection
+// --- 新增：引用你的服务和提供者 ---
+using EmbyMedia.Plugin; // 假设你的其他类都在这个命名空间
 
-// Assuming your provider class is in this namespace
-using EmbyMedia.Plugin; 
-
-namespace EmbyPinyinPlugin
+namespace EmbyMedia.Plugin // 确保命名空间与项目文件一致
 {
-    // Implement IPluginServiceRegistrator
-    public class Plugin : BasePlugin<PluginConfiguration>, IPlugin, IPluginServiceRegistrator
+    /// <summary>
+    /// 插件主类，定义插件的基本信息和配置。
+    /// </summary>
+    public class Plugin : BasePlugin<PluginConfiguration>, IPlugin
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Plugin"/> class.
+        /// </summary>
+        /// <param name="applicationPaths">应用程序路径。</param>
+        /// <param name="xmlSerializer">XML 序列化器。</param>
         public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
             : base(applicationPaths, xmlSerializer)
         {
+            // 构造函数主体通常为空，除非需要初始化插件级别的东西
         }
 
-        public override string Name => "EmbyMedia";
+        /// <inheritdoc />
+        public override string Name => "EmbyMedia Plugin";
 
-        public override Guid Id => Guid.Parse("91EE5054-84C7-76DF-61BE-CC0A35F6625E"); // Make sure you have a unique GUID
+        /// <inheritdoc />
+        public override Guid Id => Guid.Parse("YOUR-UNIQUE-GUID-HERE"); // *** 请务必替换为一个全新的 GUID ***
 
-        public override string Description => "A custom metadata provider for MediaInfo.";
-
-        /// <summary>
-        /// This method will be called by Emby at startup to let your plugin register its services.
-        /// </summary>
-        public void RegisterServices(IServiceCollection serviceCollection)
-        {
-            // Register your provider with the dependency injection container.
-            // We register it as a Scoped service, which is a safe default for providers.
-            // This tells the DI system: "When someone asks for an ICustomMetadataProvider<Video>, 
-            // create an instance of MediaInfoCustomMetadataProvider for them."
-            serviceCollection.AddScoped<ICustomMetadataProvider, MediaInfoCustomMetadataProvider>();
-            
-            // If your provider is strongly typed (e.g., ICustomMetadataProvider<Video>),
-            // you might register it like this instead:
-            // serviceCollection.AddScoped<ICustomMetadataProvider<Video>, MediaInfoCustomMetadataProvider>();
-        }
+        /// <inheritdoc />
+        public override string Description => "Provides enhanced MediaInfo handling for STRM files and backups/restores metadata.";
     }
 
+    /// <summary>
+    /// 插件配置类 (如果需要的话)。
+    /// </summary>
     public class PluginConfiguration : BasePluginConfiguration
     {
-        // Configuration options here
+        // 可以在这里添加插件的配置选项
+        // 例如: public bool EnableAutomaticBackup { get; set; } = true;
+    }
+
+    /// <summary>
+    /// 服务注册器，用于向 Emby 的依赖注入容器注册插件所需的服务。
+    /// 实现 IPluginServiceRegistrator 接口。
+    /// </summary>
+    public class PluginServiceRegistrator : IPluginServiceRegistrator
+    {
+        /// <summary>
+        /// 向服务集合注册插件的服务。
+        /// </summary>
+        /// <param name="serviceCollection">服务集合。</param>
+        public void RegisterServices(IServiceCollection serviceCollection)
+        {
+            // 1. 注册你的核心服务 IMediaInfoService
+            //    将 IMediaInfoService 映射到 MediaInfoService 实现
+            //    使用 AddSingleton 确保在整个插件生命周期内只有一个实例
+            serviceCollection.AddSingleton<IMediaInfoService, MediaInfoService>();
+
+            // 2. 注册你的自定义元数据提供者 ICustomMetadataProvider<Video>
+            //    Emby 会自动发现并使用它
+            serviceCollection.AddSingleton<ICustomMetadataProvider<Video>, MediaInfoCustomMetadataProvider>();
+
+            // 3. 注册你的计划任务 IScheduledTask
+            //    Emby 会自动发现并使用它
+            serviceCollection.AddSingleton<IScheduledTask, MediaInfoRestoreTask>();
+
+            // --- 关于 IHasOrder ---
+            // MediaInfoCustomMetadataProvider 实现了 IHasOrder。
+            // 你不需要在这里特别注册 IHasOrder。
+            // Emby 在解析 ICustomMetadataProvider<T> 时，如果发现它也实现了 IHasOrder，
+            // 会自动调用 Order 属性来确定优先级。
+        }
     }
 }
