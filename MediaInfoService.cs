@@ -1,5 +1,3 @@
-#nullable enable
-
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
@@ -329,7 +327,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
         item.Size = sourceToRestore.Size ?? 0; // Handle long? to long conversion
         item.Container = sourceToRestore.Container;
         item.TotalBitrate = sourceToRestore.Bitrate ?? 0; // Fallback to 0 if null
-        item.ContainerStartTimeTicks = sourceToRestore.ContainerStartTimeTicks ?? 0; // Handle long? to long conversion
+        // item.ContainerStartTimeTicks = sourceToRestore.ContainerStartTimeTicks ?? 0; // Handle long? to long conversion
 
         // Find the default video stream if possible
         var videoStream = mediaStreamsToRestore.FirstOrDefault(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue);
