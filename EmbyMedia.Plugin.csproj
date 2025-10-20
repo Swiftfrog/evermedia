@@ -18,6 +18,7 @@
     <!-- 核心 Emby 依赖 -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" />
     <PackageReference Include="MediaBrowser.Common" Version="4.9.1.80" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
     <!-- 不需要 ILRepack -->
   </ItemGroup>
 
