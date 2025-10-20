@@ -1,3 +1,5 @@
+#nullable enable
+
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
@@ -10,6 +12,7 @@ using MediaBrowser.Model.Dlna; // SubtitleDeliveryMethod
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -146,7 +149,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                     IsForced = stream.IsForced,
                     IsInterlaced = stream.IsInterlaced,
                     IsAVC = stream.IsAVC,
-                    Comment = stream.Comment,
+                    Comment = stream.Comment, // First and only assignment of Comment
                     TimeBase = stream.TimeBase,
                     CodecTag = stream.CodecTag,
                     // Add other properties as needed, but avoid Id, ItemId, ServerId, Path, etc.
@@ -157,31 +160,23 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                     ColorSpace = stream.ColorSpace,
                     ColorTransfer = stream.ColorTransfer,
                     ColorPrimaries = stream.ColorPrimaries,
-                    DvVersionMajor = stream.DvVersionMajor,
-                    DvVersionMinor = stream.DvVersionMinor,
-                    DvProfile = stream.DvProfile,
-                    DvLevel = stream.DvLevel,
-                    RpuPresentFlag = stream.RpuPresentFlag,
-                    ElPresentFlag = stream.ElPresentFlag,
-                    BlPresentFlag = stream.BlPresentFlag,
-                    DvBlSignalCompatibilityId = stream.DvBlSignalCompatibilityId,
-                    Comment = stream.Comment,
+                    // --- REMOVED: Properties not in MediaStream ---
+                    // DvVersionMajor = stream.DvVersionMajor,
+                    // DvVersionMinor = stream.DvVersionMinor,
+                    // DvProfile = stream.DvProfile,
+                    // DvLevel = stream.DvLevel,
+                    // RpuPresentFlag = stream.RpuPresentFlag,
+                    // ElPresentFlag = stream.ElPresentFlag,
+                    // BlPresentFlag = stream.BlPresentFlag,
+                    // DvBlSignalCompatibilityId = stream.DvBlSignalCompatibilityId,
                     Title = stream.Title,
                     VideoRange = stream.VideoRange,
-                    VideoRangeType = stream.VideoRangeType,
-                    VideoDoViTitle = stream.VideoDoViTitle,
+                    // VideoRangeType = stream.VideoRangeType, // Not a property of MediaStream
+                    // VideoDoViTitle = stream.VideoDoViTitle, // Not a property of MediaStream
                     RefFrames = stream.RefFrames,
-                    PacketLength = stream.PacketLength,
-                    Channels = stream.Channels,
+                    // PacketLength = stream.PacketLength, // Not a property of MediaStream
                     ChannelLayout = stream.ChannelLayout,
-                    SampleRate = stream.SampleRate,
                     IsAnamorphic = stream.IsAnamorphic,
-                    Height = stream.Height,
-                    Width = stream.Width,
-                    AverageFrameRate = stream.AverageFrameRate,
-                    RealFrameRate = stream.RealFrameRate,
-                    Profile = stream.Profile,
-                    Level = stream.Level,
                     AspectRatio = stream.AspectRatio,
                     Index = stream.Index,
                     Score = stream.Score,
@@ -285,20 +280,21 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                 ColorSpace = stream.ColorSpace,
                 ColorTransfer = stream.ColorTransfer,
                 ColorPrimaries = stream.ColorPrimaries,
-                DvVersionMajor = stream.DvVersionMajor,
-                DvVersionMinor = stream.DvVersionMinor,
-                DvProfile = stream.DvProfile,
-                DvLevel = stream.DvLevel,
-                RpuPresentFlag = stream.RpuPresentFlag,
-                ElPresentFlag = stream.ElPresentFlag,
-                BlPresentFlag = stream.BlPresentFlag,
-                DvBlSignalCompatibilityId = stream.DvBlSignalCompatibilityId,
+                // --- REMOVED: Properties not in MediaStream ---
+                // DvVersionMajor = stream.DvVersionMajor,
+                // DvVersionMinor = stream.DvVersionMinor,
+                // DvProfile = stream.DvProfile,
+                // DvLevel = stream.DvLevel,
+                // RpuPresentFlag = stream.RpuPresentFlag,
+                // ElPresentFlag = stream.ElPresentFlag,
+                // BlPresentFlag = stream.BlPresentFlag,
+                // DvBlSignalCompatibilityId = stream.DvBlSignalCompatibilityId,
                 Title = stream.Title,
                 VideoRange = stream.VideoRange,
-                VideoRangeType = stream.VideoRangeType,
-                VideoDoViTitle = stream.VideoDoViTitle,
+                // VideoRangeType = stream.VideoRangeType, // Not a property of MediaStream
+                // VideoDoViTitle = stream.VideoDoViTitle, // Not a property of MediaStream
                 RefFrames = stream.RefFrames,
-                PacketLength = stream.PacketLength,
+                // PacketLength = stream.PacketLength, // Not a property of MediaStream
                 ChannelLayout = stream.ChannelLayout,
                 IsAnamorphic = stream.IsAnamorphic,
                 AspectRatio = stream.AspectRatio,
@@ -418,20 +414,21 @@ public class SerializableMediaStream
     public string? ColorSpace { get; set; }
     public string? ColorTransfer { get; set; }
     public string? ColorPrimaries { get; set; }
-    public int? DvVersionMajor { get; set; }
-    public int? DvVersionMinor { get; set; }
-    public int? DvProfile { get; set; }
-    public int? DvLevel { get; set; }
-    public int? RpuPresentFlag { get; set; }
-    public int? ElPresentFlag { get; set; }
-    public int? BlPresentFlag { get; set; }
-    public int? DvBlSignalCompatibilityId { get; set; }
+    // --- REMOVED: Properties not in MediaStream ---
+    // public int? DvVersionMajor { get; set; }
+    // public int? DvVersionMinor { get; set; }
+    // public int? DvProfile { get; set; }
+    // public int? DvLevel { get; set; }
+    // public int? RpuPresentFlag { get; set; }
+    // public int? ElPresentFlag { get; set; }
+    // public int? BlPresentFlag { get; set; }
+    // public int? DvBlSignalCompatibilityId { get; set; }
     public string? Title { get; set; }
     public string? VideoRange { get; set; }
-    public string? VideoRangeType { get; set; }
-    public string? VideoDoViTitle { get; set; }
+    // public string? VideoRangeType { get; set; } // Not a property of MediaStream
+    // public string? VideoDoViTitle { get; set; } // Not a property of MediaStream
     public int? RefFrames { get; set; }
-    public int? PacketLength { get; set; }
+    // public int? PacketLength { get; set; } // Not a property of MediaStream
     public string? ChannelLayout { get; set; }
     public bool? IsAnamorphic { get; set; }
     public string? AspectRatio { get; set; }
