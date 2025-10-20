@@ -1,96 +1,95 @@
 #nullable enable
 
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.Movies;
-using MediaBrowser.Controller.Entities.TV;
-using MediaBrowser.Controller.Library; // For ILibraryManager
-using MediaBrowser.Controller.Providers; // ICustomMetadataProvider, IHasOrder, MetadataRefreshOptions
-using MediaBrowser.Model.Configuration; // LibraryOptions
-using MediaBrowser.Model.Entities; // BaseItem, Video, MetadataResult, ItemUpdateType
-using MediaBrowser.Model.Logging; // ILogger (Emby's ILogger)
-using MediaBrowser.Model.Providers; // MetadataResult<T>
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Persistence;
+using MediaBrowser.Controller.Providers;
+using MediaBrowser.Model.Configuration;
+using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.IO;
+using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Providers;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace EmbyMedia.Plugin;
-
-public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, IHasOrder // Note: Video type
+namespace EmbyMedia.Plugin
 {
-    // 添加私有字段来存储注入的依赖项
-    private readonly ILibraryManager _libraryManager; // If needed for GetLibraryOptions or other operations
-    private readonly ILogger _logger; // 使用 Emby 的非泛型 ILogger
-
-    // 修改构造函数以接受依赖项
-    public MediaInfoCustomMetadataProvider(ILibraryManager libraryManager, ILogger logger) // 依赖注入 ILibraryManager 和 Emby 的 ILogger
+    public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, IHasOrder
     {
-        _libraryManager = libraryManager;
-        _logger = logger;
-    }
+        private readonly ILibraryManager _libraryManager;
+        private readonly ILogger _logger;
+        private readonly IMediaSourceManager _mediaSourceManager;
+        private readonly IItemRepository _itemRepository;
+        private readonly IFileSystem _fileSystem;
+        private readonly MediaInfoService _mediaInfoService;
 
-    public string Name => "EmbyMedia Metadata Provider";
-
-    // Run early in the custom provider chain, but after main providers
-    public int Order => 0;
-
-    // Emby 的 ICustomMetadataProvider<Video>.FetchAsync 方法签名 (包含 LibraryOptions)
-    public async Task<ItemUpdateType> FetchAsync(
-        MetadataResult<Video> itemResult, // 第一个参数是 MetadataResult<Video>
-        MetadataRefreshOptions options,
-        LibraryOptions libraryOptions, // 包含 LibraryOptions
-        CancellationToken cancellationToken)
-    {
-        // 从 itemResult 中获取实际的 Video 对象
-        var item = itemResult.Item;
-
-        _logger.Debug("Processing item {0} in {1}", item.Path, Name);
-
-        // 声明 probeResult 变量，初始值为 false
-        bool probeResult = false;
-
-        // Check if it's a STRM file and needs probing
-        if (item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
+        /// <summary>
+        /// 构造函数 - Emby 4.9 会自动注入这些依赖
+        /// </summary>
+        public MediaInfoCustomMetadataProvider(
+            ILibraryManager libraryManager,
+            ILogger logger,
+            IMediaSourceManager mediaSourceManager,
+            IItemRepository itemRepository,
+            IFileSystem fileSystem)
         {
-            _logger.Debug("Processing STRM file {0} in {1}", item.Path, Name);
-            // For now, assume a placeholder or direct implementation
-            // 注意：这里需要注入 IMediaInfoService 或直接在此类中实现逻辑
-            // var probeResult = await _mediaInfoService.EnsureStrmMediaInfoAsync(item, cancellationToken);
-            probeResult = await EnsureStrmMediaInfoAsync(item, cancellationToken); // Placeholder call
-            if (probeResult)
+            _libraryManager = libraryManager;
+            _logger = logger;
+            _mediaSourceManager = mediaSourceManager;
+            _itemRepository = itemRepository;
+            _fileSystem = fileSystem;
+            
+            // 手动创建 MediaInfoService 实例
+            _mediaInfoService = new MediaInfoService(
+                logger,
+                libraryManager,
+                mediaSourceManager,
+                itemRepository,
+                fileSystem
+            );
+        }
+
+        public string Name => "EmbyMedia Metadata Provider";
+
+        public int Order => 0;
+
+        public async Task<ItemUpdateType> FetchAsync(
+            MetadataResult<Video> itemResult,
+            MetadataRefreshOptions options,
+            LibraryOptions libraryOptions,
+            CancellationToken cancellationToken)
+        {
+            var item = itemResult.Item;
+
+            _logger.Debug("EmbyMedia: Processing item {0}", item.Path ?? "unknown");
+
+            bool probeResult = false;
+
+            // Check if it's a STRM file and needs probing
+            if (item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.Debug("STRM file {0} MediaInfo updated, triggering backup.", item.Path);
+                _logger.Debug("EmbyMedia: Processing STRM file {0}", item.Path);
+                probeResult = await _mediaInfoService.EnsureStrmMediaInfoAsync(item, cancellationToken);
+                if (probeResult)
+                {
+                    _logger.Info("EmbyMedia: STRM file {0} MediaInfo updated", item.Path);
+                }
             }
+
+            // Always attempt to backup the current MediaInfo
+            var backupResult = await _mediaInfoService.BackupMediaInfoAsync(item, cancellationToken);
+            if (backupResult)
+            {
+                _logger.Debug("EmbyMedia: MediaInfo backup completed for {0}", item.Path ?? "unknown");
+            }
+
+            if (probeResult || backupResult)
+            {
+                return ItemUpdateType.MetadataEdit;
+            }
+            
+            return ItemUpdateType.None;
         }
-
-        // Always attempt to backup the current MediaInfo (whether just probed or already existed)
-        // var backupResult = await _mediaInfoService.BackupMediaInfoAsync(item, cancellationToken);
-        var backupResult = await BackupMediaInfoAsync(item, cancellationToken); // Placeholder call
-        if (backupResult)
-        {
-            _logger.Debug("MediaInfo backup completed for {0}", item.Path);
-        }
-
-        // 现在 probeResult 在 if (probeResult || backupResult) 的作用域内了
-        if (probeResult || backupResult)
-        {
-             return ItemUpdateType.MetadataEdit; // 假设探测或备份意味着元数据有变化
-        }
-        return ItemUpdateType.None; // 默认无变化
-    }
-
-    // Placeholder methods - implement the actual logic here or via injected service
-    // 注意：这些方法现在可以使用 _logger 和 _libraryManager/_libraryManager.GetLibraryOptions(item)
-    private async Task<bool> EnsureStrmMediaInfoAsync(BaseItem item, CancellationToken cancellationToken)
-    {
-        _logger.Info("Probing STRM file {0} - Placeholder", item.Path);
-        // ... actual probe code using IMediaSourceManager (需要注入或通过其他方式获取) ...
-        return true; // Placeholder return
-    }
-
-    private async Task<bool> BackupMediaInfoAsync(BaseItem item, CancellationToken cancellationToken)
-    {
-        _logger.Info("Backing up MediaInfo for {0} - Placeholder", item.Path);
-        // ... actual backup code (需要注入 IMediaInfoService 或直接实现) ...
-        return true; // Placeholder return
     }
 }
