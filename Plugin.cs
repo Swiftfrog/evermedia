@@ -29,6 +29,3 @@ public class Plugin : BasePlugin<PluginConfiguration>, IPlugin // Implement IPlu
 
     public override string Description => "Creates .mediainfo backups for media items and restores them.";
 }
-
-// 注意：移除了之前尝试的 IPluginServiceRegistrator 实现（如果添加过）
-// 因为 BasePlugin<T> 应该能处理服务发现
