@@ -1,6 +1,5 @@
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
@@ -22,7 +21,7 @@ namespace evermedia
         private readonly ILibraryManager _libraryManager;
         private readonly IItemRepository _itemRepository;
         private readonly IFileSystem _fileSystem;
-        private readonly IMediaEncoder _mediaEncoder;
+        private readonly IMediaSourceManager _mediaSourceManager; // 👈 替换 IMediaEncoder
         private readonly IJsonSerializer _jsonSerializer;
 
         private const string MediaInfoExtension = ".medinfo";
@@ -32,14 +31,14 @@ namespace evermedia
             ILibraryManager libraryManager,
             IItemRepository itemRepository,
             IFileSystem fileSystem,
-            IMediaEncoder mediaEncoder,
+            IMediaSourceManager mediaSourceManager, // 👈
             IJsonSerializer jsonSerializer)
         {
             _logger = logger;
             _libraryManager = libraryManager;
             _itemRepository = itemRepository;
             _fileSystem = fileSystem;
-            _mediaEncoder = mediaEncoder;
+            _mediaSourceManager = mediaSourceManager; // 👈
             _jsonSerializer = jsonSerializer;
         }
 
@@ -59,7 +58,7 @@ namespace evermedia
 
             try
             {
-                MediaSourceInfo mediaSource;
+                MediaSourceInfo mediaSource = null;
                 if (Uri.TryCreate(realPath, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https"))
                 {
                     _logger.Debug("evermedia: Skipping probe for remote URL: {Path}", item.Path);
@@ -67,19 +66,25 @@ namespace evermedia
                 }
                 else
                 {
-                    var request = new MediaInfoRequest
-                    {
-                        MediaSource = new MediaSourceInfo { Path = realPath }
-                        // 注意：Emby 4.9 不需要 MediaType
-                    };
-                    var result = await _mediaEncoder.GetMediaInfo(request, ct);
-                    mediaSource = result.MediaSource;
+                    // 👇 使用 IMediaSourceManager 获取 MediaSourceInfo
+                    var tempItem = new Video { Path = realPath, IsVirtualItem = false };
+                    var libraryOptions = _libraryManager.GetLibraryOptions(item);
+                    var sources = _mediaSourceManager.GetStaticMediaSources(
+                        tempItem,
+                        enableAlternateMediaSources: false,
+                        enablePathSubstitution: false,
+                        fillChapters: false,
+                        collectionFolders: Array.Empty<BaseItem>(),
+                        libraryOptions: libraryOptions,
+                        deviceProfile: null,
+                        user: null);
+
+                    mediaSource = sources.FirstOrDefault();
+                    if (mediaSource == null) return false;
                 }
 
-                // 保存 MediaStreams 到数据库
                 _itemRepository.SaveMediaStreams(item.InternalId, mediaSource.MediaStreams, ct);
 
-                // 从视频流中提取分辨率
                 var videoStream = mediaSource.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Video);
                 if (videoStream != null)
                 {
@@ -91,9 +96,9 @@ namespace evermedia
                 item.Container = mediaSource.Container;
                 item.TotalBitrate = mediaSource.Bitrate ?? 0;
 
-                _libraryManager.UpdateItems(new[] { item }, null, ItemUpdateType.MetadataImport, false, false, null, ct);
+                // 👇 修正：使用 List<BaseItem>
+                _libraryManager.UpdateItems(new List<BaseItem> { item }, null, ItemUpdateType.MetadataImport, false, false, null, ct);
 
-                // 使用 Emby 内置的 JsonSerializer
                 var backupPath = GetBackupPath(item);
                 Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
                 _jsonSerializer.SerializeToFile(mediaSource, backupPath);
@@ -132,7 +137,8 @@ namespace evermedia
                     item.Container = mediaSource.Container;
                     item.TotalBitrate = mediaSource.Bitrate ?? 0;
 
-                    _libraryManager.UpdateItems(new[] { item }, null, ItemUpdateType.MetadataImport, false, false, null, ct);
+                    // 👇 修正：使用 List<BaseItem>
+                    _libraryManager.UpdateItems(new List<BaseItem> { item }, null, ItemUpdateType.MetadataImport, false, false, null, ct);
                     _logger.Info("evermedia: Restored MediaInfo from {Backup}", backupPath);
                     return true;
                 }
