@@ -227,7 +227,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
             return false;
         }
 
-        List<SerializableMediaSourceInfo> mediaInfoToRestore;
+        List<SerializableMediaSourceInfo>? mediaInfoToRestore;
         try
         {
             var jsonContent = await File.ReadAllTextAsync(jsonPath, cancellationToken);
