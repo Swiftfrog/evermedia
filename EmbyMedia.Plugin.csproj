@@ -21,10 +21,6 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
-//  <ItemGroup>
-//    <Compile Include="**/*.cs" />
-//  </ItemGroup>
-
   <ItemGroup>
     <!-- Core Emby dependencies -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" PrivateAssets="All" />
