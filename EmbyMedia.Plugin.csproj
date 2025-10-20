@@ -13,9 +13,6 @@
   <ItemGroup>
     <!-- 核心 Emby 依赖 -->
     <PackageReference Include="mediabrowser.server.core" Version="4.9.1.80" />
-    <!-- 为 ILogger 添加 Emby 的 Model 依赖 -->
-    <PackageReference Include="mediabrowser.model" Version="4.9.1.80" />
-    <!-- 不再需要 ILRepack 或其他第三方库合并工具 -->
   </ItemGroup>
 
 </Project>
