@@ -1,5 +1,10 @@
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace evermedia
