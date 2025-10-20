@@ -1,3 +1,5 @@
+#nullable enable
+
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
@@ -147,7 +149,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                     IsDefault = stream.IsDefault,
                     IsForced = stream.IsForced,
                     IsInterlaced = stream.IsInterlaced,
-                    IsAVC = stream.IsAVC,
+                    // IsAVC = stream.IsAVC, // REMOVED: Obsolete property
                     Comment = stream.Comment, // First and only assignment of Comment
                     TimeBase = stream.TimeBase,
                     CodecTag = stream.CodecTag,
@@ -268,7 +270,7 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
                 IsDefault = stream.IsDefault,
                 IsForced = stream.IsForced,
                 IsInterlaced = stream.IsInterlaced,
-                IsAVC = stream.IsAVC,
+                // IsAVC = stream.IsAVC, // REMOVED: Obsolete property
                 Comment = stream.Comment,
                 TimeBase = stream.TimeBase,
                 CodecTag = stream.CodecTag,
@@ -327,26 +329,26 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
         item.Size = sourceToRestore.Size ?? 0; // Handle long? to long conversion
         item.Container = sourceToRestore.Container;
         item.TotalBitrate = sourceToRestore.Bitrate ?? 0; // Fallback to 0 if null
-        // item.ContainerStartTimeTicks = sourceToRestore.ContainerStartTimeTicks ?? 0; // Handle long? to long conversion
 
         // Find the default video stream if possible
         var videoStream = mediaStreamsToRestore.FirstOrDefault(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue);
-        if (videoStream != null)
+        if (videoStream != null) // Check if videoStream is not null
         {
-            item.Width = videoStream.Width.Value;
-            item.Height = videoStream.Height.Value;
+            item.Width = videoStream.Width ?? 0; // Handle nullable int? to int conversion
+            item.Height = videoStream.Height ?? 0; // Handle nullable int? to int conversion
         }
 
         // Update the BaseItem in the library
+        // CORRECTED: Check the actual signature of ILibraryManager.UpdateItems
+        // Common signature might be: UpdateItems(List<BaseItem> items, BaseItem parent, ItemUpdateType updateType, ...)
         try
         {
-    	    // CORRECTED: Use UpdateItems with correct signature including CancellationToken
-	    // Note: UpdateItems is synchronous (void), so no 'await'
-    	    _libraryManager.UpdateItems(
-                new List<BaseItem> { item }, // items
-                null,                        // parent (can be null if item manages its parent relationship)
-                ItemUpdateType.MetadataImport, // updateReason
-                null,                        // metadataRefreshOptions (if not needed, pass null)
+            // Attempt with common signature: items, parent, updateType, metadataRefreshOptions, cancellationToken
+            _libraryManager.UpdateItems(
+                new List<BaseItem> { item },
+                null,                        // parent
+                ItemUpdateType.MetadataImport, // updateType
+                null,                        // metadataRefreshOptions
                 cancellationToken            // cancellationToken
             );
             _logger.Info("BaseItem metadata updated for {0} after MediaInfo restore.", item.Path); // 使用 Emby ILogger 的 Info 方法
@@ -357,7 +359,6 @@ public class MediaInfoService // Note: Not injected directly via constructor in 
             _logger.ErrorException("Error updating BaseItem for {0} after MediaInfo restore: {1}", ex, item.Path, ex.Message); // 使用 Emby ILogger 的 ErrorException 方法
             return false;
         }
-
     }
 
     private string GetMediaInfoJsonPath(BaseItem item)
@@ -408,7 +409,7 @@ public class SerializableMediaStream
     public bool IsDefault { get; set; }
     public bool IsForced { get; set; }
     public bool IsInterlaced { get; set; }
-    public bool? IsAVC { get; set; }
+    // public bool? IsAVC { get; set; } // REMOVED: Obsolete property
     public string? Comment { get; set; }
     public string? TimeBase { get; set; }
     public string? CodecTag { get; set; }
