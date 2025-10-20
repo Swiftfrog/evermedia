@@ -59,7 +59,7 @@ namespace evermedia
 
             try
             {
-                MediaSourceInfo mediaSource = null;
+                MediaSourceInfo? mediaSource = null;
                 if (Uri.TryCreate(realPath, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https"))
                 {
                     _logger.Debug("evermedia: Skipping probe for remote URL: {Path}", item.Path);
@@ -121,7 +121,7 @@ namespace evermedia
 
             try
             {
-                var mediaSource = _jsonSerializer.DeserializeFromFile<MediaSourceInfo>(backupPath);
+                var mediaSource = _jsonSerializer.DeserializeFromFile<MediaSourceInfo?>(backupPath);
 
                 if (mediaSource?.RunTimeTicks > 0 && mediaSource.MediaStreams?.Count > 0)
                 {
