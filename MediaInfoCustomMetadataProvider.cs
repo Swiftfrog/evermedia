@@ -3,11 +3,11 @@
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
-using MediaBrowser.Controller.Library; // For ILibraryManager if needed in provider
+using MediaBrowser.Controller.Library; // For ILibraryManager
 using MediaBrowser.Controller.Providers; // ICustomMetadataProvider, IHasOrder, MetadataRefreshOptions
 using MediaBrowser.Model.Configuration; // LibraryOptions
-using MediaBrowser.Model.Entities; // BaseItem, Video, MetadataResult, ItemUpdateType, MediaProtocol, SubtitleDeliveryMethod
-using MediaBrowser.Model.Logging; // ILogger
+using MediaBrowser.Model.Entities; // BaseItem, Video, MetadataResult, ItemUpdateType
+using MediaBrowser.Model.Logging; // ILogger (Emby's ILogger)
 using MediaBrowser.Model.Providers; // MetadataResult<T>
 using System;
 using System.Threading;
@@ -17,10 +17,12 @@ namespace EmbyMedia.Plugin;
 
 public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, IHasOrder // Note: Video type
 {
-    private readonly ILibraryManager _libraryManager; // If needed for GetLibraryOptions
+    // 添加私有字段来存储注入的依赖项
+    private readonly ILibraryManager _libraryManager; // If needed for GetLibraryOptions or other operations
     private readonly ILogger _logger; // 使用 Emby 的非泛型 ILogger
 
-    public MediaInfoCustomMetadataProvider(ILibraryManager libraryManager, ILogger logger) // 依赖注入 Emby 的 ILogger
+    // 修改构造函数以接受依赖项
+    public MediaInfoCustomMetadataProvider(ILibraryManager libraryManager, ILogger logger) // 依赖注入 ILibraryManager 和 Emby 的 ILogger
     {
         _libraryManager = libraryManager;
         _logger = logger;
@@ -31,6 +33,7 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
     // Run early in the custom provider chain, but after main providers
     public int Order => 0;
 
+    // Emby 的 ICustomMetadataProvider<Video>.FetchAsync 方法签名 (包含 LibraryOptions)
     public async Task<ItemUpdateType> FetchAsync(
         MetadataResult<Video> itemResult, // 第一个参数是 MetadataResult<Video>
         MetadataRefreshOptions options,
@@ -50,7 +53,9 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
         {
             _logger.Debug("Processing STRM file {0} in {1}", item.Path, Name);
             // For now, assume a placeholder or direct implementation
-            probeResult = await EnsureStrmMediaInfoAsync(item, cancellationToken); // 在 if 块内为其赋值
+            // 注意：这里需要注入 IMediaInfoService 或直接在此类中实现逻辑
+            // var probeResult = await _mediaInfoService.EnsureStrmMediaInfoAsync(item, cancellationToken);
+            probeResult = await EnsureStrmMediaInfoAsync(item, cancellationToken); // Placeholder call
             if (probeResult)
             {
                 _logger.Debug("STRM file {0} MediaInfo updated, triggering backup.", item.Path);
@@ -58,6 +63,7 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
         }
 
         // Always attempt to backup the current MediaInfo (whether just probed or already existed)
+        // var backupResult = await _mediaInfoService.BackupMediaInfoAsync(item, cancellationToken);
         var backupResult = await BackupMediaInfoAsync(item, cancellationToken); // Placeholder call
         if (backupResult)
         {
@@ -73,17 +79,18 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
     }
 
     // Placeholder methods - implement the actual logic here or via injected service
+    // 注意：这些方法现在可以使用 _logger 和 _libraryManager/_libraryManager.GetLibraryOptions(item)
     private async Task<bool> EnsureStrmMediaInfoAsync(BaseItem item, CancellationToken cancellationToken)
     {
         _logger.Info("Probing STRM file {0} - Placeholder", item.Path);
-        // ... actual probe code using IMediaSourceManager ...
+        // ... actual probe code using IMediaSourceManager (需要注入或通过其他方式获取) ...
         return true; // Placeholder return
     }
 
     private async Task<bool> BackupMediaInfoAsync(BaseItem item, CancellationToken cancellationToken)
     {
         _logger.Info("Backing up MediaInfo for {0} - Placeholder", item.Path);
-        // ... actual backup code ...
+        // ... actual backup code (需要注入 IMediaInfoService 或直接实现) ...
         return true; // Placeholder return
     }
 }
