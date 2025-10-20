@@ -1,6 +1,7 @@
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Configuration;       // LibraryOptions
 using MediaBrowser.Model.Providers;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ namespace evermedia
         public async Task<ItemUpdateType> FetchAsync(
             MetadataResult<Video> result,
             MetadataRefreshOptions options,
+            LibraryOptions libraryOptions,
             CancellationToken cancellationToken)
         {
             var item = result.Item;
