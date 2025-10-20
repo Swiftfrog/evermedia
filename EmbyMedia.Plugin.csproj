@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+k<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -10,16 +10,15 @@
     <RootNamespace>EmbyMedia.Plugin</RootNamespace>
     <!-- 启用可空引用类型检查 -->
     <Nullable>enable</Nullable>
-    <!-- 可以考虑添加 LangVersion 以确保使用 .NET 8 的 C# 特性 -->
+    <!-- 使用最新的 C# 语言版本 -->
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- 核心 Emby 依赖 -->
-    <PackageReference Include="mediabrowser.server.core" Version="4.9.1.80" />
-    <!-- 显式添加 Model 包以获取 MediaStream, MediaSourceInfo, BaseItem, LibraryOptions 等定义 -->
-    <PackageReference Include="mediabrowser.model" Version="4.9.1.80" />
-    <!-- 不需要 ILRepack 或其他不存在的包 -->
+    <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" />
+    <PackageReference Include="MediaBrowser.Common" Version="4.9.1.80" />
+    <!-- 不需要 ILRepack -->
   </ItemGroup>
 
 </Project>
