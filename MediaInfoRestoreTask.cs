@@ -1,6 +1,7 @@
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Logging; // 使用 Emby 的 ILogger
 using MediaBrowser.Model.Tasks; // IScheduledTask, TaskTriggerInfo
+using MediaBrowser.Controller.Entities
 using System;
 using System.Collections.Generic;
 using System.Threading;
