@@ -51,7 +51,7 @@ public class MediaInfoRestoreTask : IScheduledTask
             IsMissing = false // Only items that exist
         });
 
-        var totalItems = items.Count; // Note: GetItemList returns List<T>, so Count is correct
+        var totalItems = items.Length; // Note: GetItemList returns List<T>, so Count is correct
         var processed = 0;
         var restoredCount = 0;
 
