@@ -30,15 +30,36 @@ jobs:
     - name: Find Plugin DLL
       id: find_dll
       run: |
-        $dllPath = Get-ChildItem -Path "./bin/Release/" -Recurse -Name "*.dll" | Select-Object -First 1
+        # Find the main plugin DLL (not dependencies like Emby.Media.Model.dll)
+        $dllPath = Get-ChildItem -Path "./bin/Release/net8.0/" -Name "*.dll" | Where-Object { $_ -ne "Emby.Media.Model.dll" -and $_ -ne "MediaBrowser.*.dll" -and $_ -ne "Microsoft.*.dll" -and $_ -ne "System.*.dll" } | Select-Object -First 1
+        if ($null -eq $dllPath) {
+            Write-Error "Main plugin DLL not found in ./bin/Release/net8.0/"
+            exit 1
+        }
         echo "DLL_PATH=$dllPath" >> $env:GITHUB_ENV
-        echo "Found DLL: $dllPath"
+        echo "Found main plugin DLL: $dllPath"
+      shell: pwsh
+
+    - name: Extract Version from Directory.Build.props
+      id: extract_version
+      run: |
+        $propsContent = Get-Content -Path "Directory.Build.props" -Raw
+        $versionMatch = [regex]::Match($propsContent, '<AssemblyVersion>(.*?)</AssemblyVersion>')
+        if ($versionMatch.Success) {
+            $version = $versionMatch.Groups[1].Value
+            echo "VERSION=$version" >> $env:GITHUB_ENV
+            echo "Extracted version: $version"
+        } else {
+            Write-Error "AssemblyVersion not found in Directory.Build.props"
+            exit 1
+        }
+      shell: pwsh
 
     - name: Pack
       run: |
-        $version = (Select-String -Path "Directory.Build.props" -Pattern '<AssemblyVersion>(.*?)</AssemblyVersion>' | ForEach-Object { ($_ -split '>')[1] -split '<')[0]
-        Compress-Archive -Path "./bin/Release/$env:DLL_PATH" -DestinationPath "${{ env.PLUGIN_NAME }}-${version}.zip"
-        echo "PACKED_FILE=${{ env.PLUGIN_NAME }}-${version}.zip" >> $env:GITHUB_ENV
+        Compress-Archive -Path "./bin/Release/net8.0/$env:DLL_PATH" -DestinationPath "${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip"
+        echo "PACKED_FILE=${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip" >> $env:GITHUB_ENV
+      shell: pwsh
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
