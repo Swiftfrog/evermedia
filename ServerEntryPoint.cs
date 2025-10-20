@@ -5,7 +5,6 @@ using MediaBrowser.Controller.Providers; // For IProviderManager
 using MediaBrowser.Model.Logging; // For ILogger (Emby's ILogger)
 using MediaBrowser.Controller.Library; // For ILibraryManager if needed in provider
 using System;
-using System.Threading.Tasks;
 
 namespace EmbyMedia.Plugin;
 
@@ -22,9 +21,10 @@ public class ServerEntryPoint : IServerEntryPoint
         _logger = logger;
     }
 
-    public async Task RunAsync() // Use RunAsync if available, or Run if not
+    // 修正：实现 IServerEntryPoint.Run() 方法，返回 void
+    public void Run()
     {
-        _logger.Info("EmbyMedia ServerEntryPoint RunAsync started.");
+        _logger.Info("EmbyMedia ServerEntryPoint Run started.");
 
         try
         {
@@ -44,7 +44,11 @@ public class ServerEntryPoint : IServerEntryPoint
              _logger.ErrorException("Error registering EmbyMedia MediaInfoCustomMetadataProvider: {0}", ex, ex.Message);
         }
 
-        await Task.CompletedTask; // If RunAsync is used, ensure it returns Task
+        // If you had async work, you would need to run it synchronously here
+        // For example, using .GetAwaiter().GetResult() or .Result
+        // But for simple registration, synchronous Run is fine.
+        // If the registration logic itself were async, you might need:
+        // SomeAsyncRegistrationMethod().GetAwaiter().GetResult();
     }
 
     public void Dispose()
