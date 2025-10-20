@@ -29,7 +29,6 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
     // Run early in the custom provider chain, but after main providers
     public int Order => 0;
 
-    // 修正后的 FetchAsync 方法签名，完全匹配 ICustomMetadataProvider<Video> 接口
     public async Task<ItemUpdateType> FetchAsync(
         MetadataResult<Video> itemResult, // 第一个参数是 MetadataResult<Video>
         MetadataRefreshOptions options,
@@ -41,33 +40,29 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
 
         _logger.Debug("Processing item {0} in {1}", item.Path, Name);
 
+        // 声明 probeResult 变量，初始值为 false
+        bool probeResult = false;
+
         // Check if it's a STRM file and needs probing
         if (item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
         {
             _logger.Debug("Processing STRM file {0} in {1}", item.Path, Name);
-            // var probeResult = await _mediaInfoService.EnsureStrmMediaInfoAsync(item, cancellationToken);
             // For now, assume a placeholder or direct implementation
-            var probeResult = await EnsureStrmMediaInfoAsync(item, cancellationToken); // Placeholder call
+            probeResult = await EnsureStrmMediaInfoAsync(item, cancellationToken); // 在 if 块内为其赋值
             if (probeResult)
             {
-                // result.HasMetadataChanged = true; // itemResult 没有这个属性，而是通过返回值告知
                 _logger.Debug("STRM file {0} MediaInfo updated, triggering backup.", item.Path);
             }
         }
 
         // Always attempt to backup the current MediaInfo (whether just probed or already existed)
-        // var backupResult = await _mediaInfoService.BackupMediaInfoAsync(item, cancellationToken);
         var backupResult = await BackupMediaInfoAsync(item, cancellationToken); // Placeholder call
         if (backupResult)
         {
-            // result.HasMetadataChanged = true; // 同上
             _logger.Debug("MediaInfo backup completed for {0}", item.Path);
         }
 
-        // 返回 ItemUpdateType 来告知 Emby 是否发生了元数据更改
-        // 如果 STRM 探测或备份导致了 MediaSourceInfo 的变化，可能需要返回 MetadataEdit 或其他相关类型
-        // 如果没有实际更改，则返回 None
-        // 这里需要根据 EnsureStrmMediaInfoAsync 和 BackupMediaInfoAsync 的结果来判断
+        // 现在 probeResult 在 if (probeResult || backupResult) 的作用域内了
         if (probeResult || backupResult)
         {
              return ItemUpdateType.MetadataEdit; // 假设探测或备份意味着元数据有变化
