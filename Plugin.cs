@@ -48,7 +48,7 @@ namespace EmbyMedia.Plugin
             _logger = logger;
         }
 
-        public Task RunAsync()
+        public Task Run()
         {
             _logger.Info("EmbyMedia Plugin: Plugin loaded successfully");
             _logger.Info("EmbyMedia Plugin: MediaInfoCustomMetadataProvider registered for Video items");
