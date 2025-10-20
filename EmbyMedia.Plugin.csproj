@@ -1,56 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- 目标框架和主要输出路径 -->
     <TargetFramework>net8.0</TargetFramework>
-    <OutputPath>bin\$(Configuration)\</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-
-    <!-- 其他属性 -->
-    <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
-    <InformationalVersion>1.0.0.0</InformationalVersion>
-    <Configurations>Debug;Release</Configurations>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Platforms>AnyCPU</Platforms>
-    <DebugType>portable</DebugType>
-    <!-- 移除了 <BaseIntermediateOutputPath> 和 <IntermediateOutputPath> -->
-    <OutputType>Library</OutputType>
+    <CopyLocalLockFileAssemblies>True</CopyLocalLockFileAssemblies>
+    <IncludeSourceRevisionInInformationalVersion>true</IncludeSourceRevisionInInformationalVersion>
+    <AssemblyName>EmbyMedia.Plugin</AssemblyName>
+    <RootNamespace>EmbyMedia.Plugin</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Core Emby dependencies -->
-    <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" PrivateAssets="All" />
-    <!-- Other potential package references can go here if needed -->
-    <!-- <PackageReference Include="MediaBrowser.Model" Version="4.9.1.80" PrivateAssets="All" /> -->
-    <!-- <PackageReference Include="MediaBrowser.Controller" Version="4.9.1.80" PrivateAssets="All" /> -->
-    <!-- <PackageReference Include="MediaBrowser.Common" Version="4.9.1.80" PrivateAssets="All" /> -->
-    <!-- <PackageReference Include="Emby.Server.Implementations" Version="4.9.1.80" PrivateAssets="All" /> -->
-    <!-- <PackageReference Include="MediaBrowser.MediaEncoding" Version="4.9.1.80" PrivateAssets="All" /> -->
-
-    <!-- ILRepack for merging dependencies -->
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.1" PrivateAssets="All" />
+    <!-- 核心 Emby 依赖 -->
+    <PackageReference Include="mediabrowser.server.core" Version="4.9.1.80" />
+    <!-- 为 ILogger 添加 Emby 的 Model 依赖 -->
+    <PackageReference Include="mediabrowser.model" Version="4.9.1.80" />
+    <!-- 不再需要 ILRepack 或其他第三方库合并工具 -->
   </ItemGroup>
-
-  <!-- ILRepack target -->
-  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
-    <ItemGroup>
-      <InputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
-      <!-- Add other assemblies to merge if necessary -->
-      <!-- <InputAssemblies Include="$(OutputPath)SomeOtherLib.dll" /> -->
-    </ItemGroup>
-    <ILRepack
-      Parallel="true"
-      DebugInfo="true"
-      Internalize="true"
-      InputAssemblies="@(InputAssemblies)"
-      OutputFile="$(OutputPath)$(AssemblyName).dll"
-      LibraryPath="$(OutputPath)"
-    />
-  </Target>
 
 </Project>

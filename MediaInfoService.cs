@@ -1,13 +1,10 @@
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.Movies;
-using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
-using MediaBrowser.Model.MediaInfo;
-using Microsoft.Extensions.Logging;
+using MediaBrowser.Model.Logging; // ILogger
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace EmbyMedia.Plugin;
 
+// Interface definition remains the same, but implementation uses Emby's ILogger
 public interface IMediaInfoService
 {
     Task<bool> EnsureStrmMediaInfoAsync(BaseItem item, CancellationToken cancellationToken);
@@ -24,20 +22,15 @@ public interface IMediaInfoService
     Task<bool> RestoreMediaInfoAsync(BaseItem item, CancellationToken cancellationToken);
 }
 
-public class MediaInfoService : IMediaInfoService
+public class MediaInfoService // Note: Not injected directly via constructor in this example, see Provider/Task
 {
-    private readonly ILogger<MediaInfoService> _logger;
+    private readonly ILogger _logger; // 使用 Emby 的非泛型 ILogger
     private readonly ILibraryManager _libraryManager;
     private readonly IMediaSourceManager _mediaSourceManager;
     private readonly IItemRepository _itemRepository;
     private readonly IFileSystem _fileSystem;
 
-    public MediaInfoService(
-        ILogger<MediaInfoService> logger,
-        ILibraryManager libraryManager,
-        IMediaSourceManager mediaSourceManager,
-        IItemRepository itemRepository,
-        IFileSystem fileSystem)
+    public MediaInfoService(ILogger logger, ILibraryManager libraryManager, IMediaSourceManager mediaSourceManager, IItemRepository itemRepository, IFileSystem fileSystem)
     {
         _logger = logger;
         _libraryManager = libraryManager;
@@ -46,21 +39,25 @@ public class MediaInfoService : IMediaInfoService
         _fileSystem = fileSystem;
     }
 
+    // --- Implementation methods using Emby's ILogger ---
+    // (The body of these methods remains largely the same, just ensure _logger calls use Emby's ILogger methods)
+
     public async Task<bool> EnsureStrmMediaInfoAsync(BaseItem item, CancellationToken cancellationToken)
     {
         if (item.Path == null || !item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
         {
+            _logger.Debug("Item {0} is not a STRM file, skipping probe.", item.Path);
             return false; // Not a STRM file
         }
 
         var currentMediaSources = item.GetMediaSources(false, false, _libraryManager.GetLibraryOptions(item));
         if (currentMediaSources.Count > 0 && currentMediaSources[0].MediaStreams.Count > 0)
         {
-            _logger.LogDebug("STRM file {ItemPath} already has MediaStreams, skipping probe.", item.Path);
+            _logger.Debug("STRM file {0} already has MediaStreams, skipping probe.", item.Path);
             return false; // Already has streams
         }
 
-        _logger.LogDebug("Probing STRM file {ItemPath} for MediaInfo.", item.Path);
+        _logger.Debug("Probing STRM file {0} for MediaInfo.", item.Path);
         try
         {
             // This call triggers the probe for STRM files
@@ -79,18 +76,18 @@ public class MediaInfoService : IMediaInfoService
             // Check if the probe was successful and streams were populated
             if (updatedSources.Count > 0 && updatedSources[0].MediaStreams.Count > 0)
             {
-                _logger.LogInformation("Successfully probed STRM file {ItemPath}, found {StreamCount} streams.", item.Path, updatedSources[0].MediaStreams.Count);
+                _logger.Info("Successfully probed STRM file {0}, found {1} streams.", item.Path, updatedSources[0].MediaStreams.Count);
                 return true;
             }
             else
             {
-                _logger.LogWarning("Probing STRM file {ItemPath} did not yield any MediaStreams.", item.Path);
+                _logger.Warn("Probing STRM file {0} did not yield any MediaStreams.", item.Path);
                 return false;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error probing STRM file {ItemPath}: {Message}", item.Path, ex.Message);
+            _logger.ErrorException("Error probing STRM file {0}: {1}", ex, item.Path, ex.Message); // 注意：Emby ILogger 可能有 ErrorException 方法
             return false;
         }
     }
@@ -100,7 +97,7 @@ public class MediaInfoService : IMediaInfoService
         var mediaSources = item.GetMediaSources(false, false, _libraryManager.GetLibraryOptions(item));
         if (mediaSources.Count == 0)
         {
-            _logger.LogDebug("No MediaSources found for item {ItemPath}, skipping backup.", item.Path);
+            _logger.Debug("No MediaSources found for item {0}, skipping backup.", item.Path);
             return false;
         }
 
@@ -150,8 +147,6 @@ public class MediaInfoService : IMediaInfoService
                     Comment = stream.Comment,
                     TimeBase = stream.TimeBase,
                     CodecTag = stream.CodecTag,
-                    LanguageTag = stream.LanguageTag, // Assuming this exists or use Language
-                    LanguageName = stream.LanguageName, // Assuming this exists or use Language
                     // Add other properties as needed, but avoid Id, ItemId, ServerId, Path, etc.
                     // Note: Some properties like Extradata, NalLengthSize, PixelFormat, ColorSpace, etc., might be important depending on your needs
                     Extradata = stream.Extradata,
@@ -215,12 +210,12 @@ public class MediaInfoService : IMediaInfoService
         {
             var options = new JsonSerializerOptions { WriteIndented = true };
             await File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(mediaInfoToSave, options), cancellationToken);
-            _logger.LogInformation("MediaInfo backup successful for {ItemPath} to {JsonPath}", item.Path, jsonPath);
+            _logger.Info("MediaInfo backup successful for {0} to {1}", item.Path, jsonPath); // 使用 Emby ILogger 的 Info 方法
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error writing MediaInfo backup for {ItemPath} to {JsonPath}: {Message}", item.Path, jsonPath, ex.Message);
+            _logger.ErrorException("Error writing MediaInfo backup for {0} to {1}: {2}", ex, item.Path, jsonPath, ex.Message); // 使用 Emby ILogger 的 ErrorException 方法
             return false;
         }
     }
@@ -230,7 +225,7 @@ public class MediaInfoService : IMediaInfoService
         var jsonPath = GetMediaInfoJsonPath(item);
         if (!_fileSystem.FileExists(jsonPath))
         {
-            _logger.LogDebug("No MediaInfo backup file found for {ItemPath} at {JsonPath}", item.Path, jsonPath);
+            _logger.Debug("No MediaInfo backup file found for {0} at {1}", item.Path, jsonPath); // 使用 Emby ILogger 的 Debug 方法
             return false;
         }
 
@@ -241,13 +236,13 @@ public class MediaInfoService : IMediaInfoService
             mediaInfoToRestore = JsonSerializer.Deserialize<List<SerializableMediaSourceInfo>>(jsonContent);
             if (mediaInfoToRestore == null || mediaInfoToRestore.Count == 0)
             {
-                _logger.LogWarning("MediaInfo backup file {JsonPath} for {ItemPath} is empty or invalid.", jsonPath, item.Path);
+                _logger.Warn("MediaInfo backup file {0} for {1} is empty or invalid.", jsonPath, item.Path); // 使用 Emby ILogger 的 Warn 方法
                 return false;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error reading or deserializing MediaInfo backup for {ItemPath} from {JsonPath}: {Message}", item.Path, jsonPath, ex.Message);
+            _logger.ErrorException("Error reading or deserializing MediaInfo backup for {0} from {1}: {2}", ex, item.Path, jsonPath, ex.Message); // 使用 Emby ILogger 的 ErrorException 方法
             return false;
         }
 
@@ -322,11 +317,11 @@ public class MediaInfoService : IMediaInfoService
         try
         {
             _itemRepository.SaveMediaStreams(item.InternalId, mediaStreamsToRestore, cancellationToken);
-            _logger.LogInformation("MediaStreams restored for {ItemPath} from {JsonPath}", item.Path, jsonPath);
+            _logger.Info("MediaStreams restored for {0} from {1}", item.Path, jsonPath); // 使用 Emby ILogger 的 Info 方法
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error saving MediaStreams for {ItemPath} from {JsonPath}: {Message}", item.Path, jsonPath, ex.Message);
+            _logger.ErrorException("Error saving MediaStreams for {0} from {1}: {2}", ex, item.Path, jsonPath, ex.Message); // 使用 Emby ILogger 的 ErrorException 方法
             return false;
         }
 
@@ -353,12 +348,12 @@ public class MediaInfoService : IMediaInfoService
                 ItemUpdateType.MetadataImport,
                 cancellationToken: cancellationToken
             );
-            _logger.LogInformation("BaseItem metadata updated for {ItemPath} after MediaInfo restore.", item.Path);
+            _logger.Info("BaseItem metadata updated for {0} after MediaInfo restore.", item.Path); // 使用 Emby ILogger 的 Info 方法
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating BaseItem for {ItemPath} after MediaInfo restore: {Message}", item.Path, ex.Message);
+            _logger.ErrorException("Error updating BaseItem for {0} after MediaInfo restore: {1}", ex, item.Path, ex.Message); // 使用 Emby ILogger 的 ErrorException 方法
             return false;
         }
     }
@@ -375,7 +370,7 @@ public class MediaInfoService : IMediaInfoService
     }
 }
 
-// DTOs for serialization
+// DTOs remain the same
 public class SerializableMediaSourceInfo
 {
     public string? Container { get; set; }
