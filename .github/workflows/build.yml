@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main", "dev" ] # Adjust branches as needed
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  PLUGIN_NAME: EmbyMedia # Match your plugin name
+
+jobs:
+  build:
+    runs-on: windows-latest # Using Windows for ILRepack
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore -c Release
+
+    - name: Find Plugin DLL
+      id: find_dll
+      run: |
+        $dllPath = Get-ChildItem -Path "./bin/Release/" -Recurse -Name "*.dll" | Select-Object -First 1
+        echo "DLL_PATH=$dllPath" >> $env:GITHUB_ENV
+        echo "Found DLL: $dllPath"
+
+    - name: Pack
+      run: |
+        $version = (Select-String -Path "Directory.Build.props" -Pattern '<AssemblyVersion>(.*?)</AssemblyVersion>' | ForEach-Object { ($_ -split '>')[1] -split '<')[0]
+        Compress-Archive -Path "./bin/Release/$env:DLL_PATH" -DestinationPath "${{ env.PLUGIN_NAME }}-${version}.zip"
+        echo "PACKED_FILE=${{ env.PLUGIN_NAME }}-${version}.zip" >> $env:GITHUB_ENV
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PLUGIN_NAME }}-build
+        path: ${{ env.PACKED_FILE }}
+        if-no-files-found: error
