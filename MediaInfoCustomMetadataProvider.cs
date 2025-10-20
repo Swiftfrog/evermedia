@@ -3,10 +3,10 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library; // For ILibraryManager if needed in provider
 using MediaBrowser.Controller.Providers; // ICustomMetadataProvider, IHasOrder, MetadataRefreshOptions
-using MediaBrowser.Model.Entities; // BaseItem, Video, MetadataResult, ItemUpdateType
+using MediaBrowser.Model.Configuration; // LibraryOptions
+using MediaBrowser.Model.Entities; // BaseItem, Video, MetadataResult, ItemUpdateType, MediaProtocol, SubtitleDeliveryMethod
 using MediaBrowser.Model.Logging; // ILogger
 using MediaBrowser.Model.Providers; // MetadataResult<T>
-using MediaBrowser.Model.Configuration; //LibraryOptions
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,28 +29,29 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
     // Run early in the custom provider chain, but after main providers
     public int Order => 0;
 
-    // Emby 的 ICustomMetadataProvider<Video>.FetchAsync 方法签名
-    // 注意：这个签名可能也随 Emby 版本变化，需要确认 4.9.1.80 的确切签名
-    // 根据之前的错误信息，可能是缺少 LibraryOptions 参数，或者参数顺序不同
-    // 通常签名是: Task<MetadataResult<T>> FetchAsync(T item, MetadataRefreshOptions options, CancellationToken cancellationToken)
-    // 但有时会包含 LibraryOptions
-    public async Task<MetadataResult<Video>> FetchAsync(Video item, MetadataRefreshOptions options, LibraryOptions libraryOptions, CancellationToken cancellationToken) // Corrected signature
+    // 修正后的 FetchAsync 方法签名，完全匹配 ICustomMetadataProvider<Video> 接口
+    public async Task<ItemUpdateType> FetchAsync(
+        MetadataResult<Video> itemResult, // 第一个参数是 MetadataResult<Video>
+        MetadataRefreshOptions options,
+        LibraryOptions libraryOptions, // 包含 LibraryOptions
+        CancellationToken cancellationToken)
     {
-        var result = new MetadataResult<Video> { Item = item, QueriedById = false, HasMetadataChanged = false };
+        // 从 itemResult 中获取实际的 Video 对象
+        var item = itemResult.Item;
 
-        _logger.Debug("Processing item {0} in {1}", item.Path, Name); // 使用 Emby ILogger 的 Debug 方法
+        _logger.Debug("Processing item {0} in {1}", item.Path, Name);
 
         // Check if it's a STRM file and needs probing
         if (item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.Debug("Processing STRM file {0} in {1}", item.Path, Name); // 使用 Emby ILogger 的 Debug 方法
+            _logger.Debug("Processing STRM file {0} in {1}", item.Path, Name);
             // var probeResult = await _mediaInfoService.EnsureStrmMediaInfoAsync(item, cancellationToken);
             // For now, assume a placeholder or direct implementation
             var probeResult = await EnsureStrmMediaInfoAsync(item, cancellationToken); // Placeholder call
             if (probeResult)
             {
-                result.HasMetadataChanged = true; // Indicate that MediaInfo might have changed
-                _logger.Debug("STRM file {0} MediaInfo updated, triggering backup.", item.Path); // 使用 Emby ILogger 的 Debug 方法
+                // result.HasMetadataChanged = true; // itemResult 没有这个属性，而是通过返回值告知
+                _logger.Debug("STRM file {0} MediaInfo updated, triggering backup.", item.Path);
             }
         }
 
@@ -59,11 +60,19 @@ public class MediaInfoCustomMetadataProvider : ICustomMetadataProvider<Video>, I
         var backupResult = await BackupMediaInfoAsync(item, cancellationToken); // Placeholder call
         if (backupResult)
         {
-            result.HasMetadataChanged = true; // Indicate that backup was created/updated
-            _logger.Debug("MediaInfo backup completed for {0}", item.Path); // 使用 Emby ILogger 的 Debug 方法
+            // result.HasMetadataChanged = true; // 同上
+            _logger.Debug("MediaInfo backup completed for {0}", item.Path);
         }
 
-        return result;
+        // 返回 ItemUpdateType 来告知 Emby 是否发生了元数据更改
+        // 如果 STRM 探测或备份导致了 MediaSourceInfo 的变化，可能需要返回 MetadataEdit 或其他相关类型
+        // 如果没有实际更改，则返回 None
+        // 这里需要根据 EnsureStrmMediaInfoAsync 和 BackupMediaInfoAsync 的结果来判断
+        if (probeResult || backupResult)
+        {
+             return ItemUpdateType.MetadataEdit; // 假设探测或备份意味着元数据有变化
+        }
+        return ItemUpdateType.None; // 默认无变化
     }
 
     // Placeholder methods - implement the actual logic here or via injected service
