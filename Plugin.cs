@@ -1,30 +1,34 @@
 // Plugin.cs
-using MediaBrowser.Common.Configuration; // IConfigurationManager
-using MediaBrowser.Common.Plugins; // IPlugin, BasePlugin
-using MediaBrowser.Model.Plugins; // BasePluginConfiguration
-using MediaBrowser.Model.Serialization; // IJsonSerializer
-using System;// IApplicationHost 在 MediaBrowser.Common 命名空间下
-using MediaBrowser.Common; // 引入你的提供者和任务命名空间
-using EmbyMedia.Plugin.Providers;
+using MediaBrowser.Common.Configuration;
+using MediaBrowser.Common.Plugins;
+using MediaBrowser.Model.Serialization;
+using Microsoft.Extensions.DependencyInjection; // Add this
+using System;
 
-namespace EmbyMedia.Plugin
+namespace EmbyMedia.Plugin;
+
+public class Plugin : BasePlugin // Keep BasePlugin for basic info
 {
-    public class Plugin : BasePlugin<PluginConfiguration>, IPlugin
+    public override string Name => "EmbyMedia";
+
+    public override Guid Id => Guid.Parse("35F12540-9EBD-9146-8E44-5D6D9BD66489");
+
+    // Keep the BasePlugin constructor if needed for basic functionality
+    public Plugin() : base() // Use the public parameterless constructor
     {
-        public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer) : base(applicationPaths, xmlSerializer)
-        {
-        }
-
-        public override string Name => "EmbyMedia";
-
-        public override Guid Id => Guid.Parse("35F12540-9EBD-9146-8E44-5D6D9BD66489"); // 请替换成你生成的全新 GUID
-
-        public override string Description => "Creates .mediainfo backups for media items and restores them.";
     }
+}
 
-    public class PluginConfiguration : BasePluginConfiguration
+// Add a separate class implementing the registration interface IF IT EXISTS
+// Check Emby API for the correct interface name, e.g., IPluginServiceRegistrator or similar
+// This is a hypothetical example based on common patterns:
+public class EmbyMediaPluginServiceRegistrator : IPluginServiceRegistrator // <-- Check actual interface name
+{
+    public void RegisterServices(IServiceCollection serviceCollection)
     {
-        // 可以在这里添加插件配置选项，例如是否处理 OriginalTitle 等
-        // public bool ProcessOriginalTitle { get; set; } = false;
+        // Register your custom metadata provider
+        serviceCollection.AddSingleton<ICustomMetadataProvider<Video>, MediaInfoCustomMetadataProvider>();
+        // Register other services if needed
+        serviceCollection.AddSingleton<IMediaInfoService, MediaInfoService>();
     }
 }
