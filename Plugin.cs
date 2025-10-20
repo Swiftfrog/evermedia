@@ -1,4 +1,4 @@
-kusing MediaBrowser.Common.Configuration;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using System;
 
