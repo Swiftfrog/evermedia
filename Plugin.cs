@@ -1,6 +1,3 @@
-// ============================================
-// 1. Plugin.cs
-// ============================================
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Plugins;
@@ -8,9 +5,8 @@ using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Logging;
 using System;
-using System.Threading.Tasks;
 
-namespace EmbyMedia.Plugin
+namespace evermedia
 {
     public class Plugin : BasePlugin<PluginConfiguration>
     {
@@ -24,21 +20,16 @@ namespace EmbyMedia.Plugin
 
         public static Plugin? Instance => _instance;
 
-        public override string Name => "EmbyMedia Plugin";
-
+        public override string Name => "evermedia";
         public override Guid Id => Guid.Parse("91EE5054-84C7-76DF-61BE-CC0A35F6625E");
-
-        public override string Description => "Provides enhanced MediaInfo handling for STRM files and backups/restores metadata.";
+        public override string Description => "Pre-probe and persist MediaInfo for STRM files.";
     }
 
     public class PluginConfiguration : BasePluginConfiguration
     {
-        // 配置选项
+        // 可扩展配置
     }
 
-    /// <summary>
-    /// 服务器入口点 - 用于记录插件启动信息
-    /// </summary>
     public class PluginEntryPoint : IServerEntryPoint
     {
         private readonly ILogger _logger;
@@ -50,16 +41,12 @@ namespace EmbyMedia.Plugin
 
         public void Run()
         {
-            _logger.Info("EmbyMedia Plugin: Plugin loaded successfully");
-            _logger.Info("EmbyMedia Plugin: MediaInfoCustomMetadataProvider registered for Video items");
-            _logger.Info("EmbyMedia Plugin: MediaInfoRestoreTask registered as scheduled task");
-            /// return Task.CompletedTask;
+            _logger.Info("evermedia: Plugin loaded successfully");
         }
 
         public void Dispose()
         {
-            _logger.Info("EmbyMedia Plugin: Plugin shutting down");
+            _logger.Info("evermedia: Plugin shutting down");
         }
     }
 }
-
