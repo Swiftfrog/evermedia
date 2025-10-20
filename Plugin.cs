@@ -31,7 +31,7 @@ namespace EmbyMedia.Plugin // 确保命名空间与项目文件一致
         public override string Name => "EmbyMedia Plugin";
 
         /// <inheritdoc />
-        public override Guid Id => Guid.Parse("YOUR-UNIQUE-GUID-HERE"); // *** 请务必替换为一个全新的 GUID ***
+        public override Guid Id => Guid.Parse("91EE5054-84C7-76DF-61BE-CC0A35F6625E"); // *** 请务必替换为一个全新的 GUID ***
 
         /// <inheritdoc />
         public override string Description => "Provides enhanced MediaInfo handling for STRM files and backups/restores metadata.";
