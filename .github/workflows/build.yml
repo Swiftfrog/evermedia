@@ -7,8 +7,8 @@ on:
     branches: [ "main" ]
 
 env:
-  PLUGIN_NAME: EmbyMedia # Match your plugin name
-  PLUGIN_DLL_NAME: EmbyMedia.Plugin.dll # The expected name of your compiled plugin DLL
+  PLUGIN_NAME: evermedia # Match your plugin name
+  PLUGIN_DLL_NAME: evermedia.dll # The expected name of your compiled plugin DLL
 
 jobs:
   build:
@@ -46,15 +46,14 @@ jobs:
     - name: Extract Version from .csproj
       id: extract_version
       run: |
-        $csprojContent = Get-Content -Path "EmbyMedia.Plugin.csproj" -Raw
-        # Match the AssemblyVersion inside the <AssemblyVersion> tag
+        $csprojContent = Get-Content -Path "${{ env.PLUGIN_NAME }}.csproj" -Raw
         $versionMatch = [regex]::Match($csprojContent, '<AssemblyVersion>(.*?)</AssemblyVersion>')
         if ($versionMatch.Success) {
             $version = $versionMatch.Groups[1].Value
             echo "VERSION=$version" >> $env:GITHUB_ENV
             echo "Extracted version from .csproj: $version"
         } else {
-            Write-Error "AssemblyVersion not found in EmbyMedia.Plugin.csproj"
+            Write-Error "AssemblyVersion not found in ${{ env.PLUGIN_NAME }}.csproj"
             exit 1
         }
       shell: pwsh
