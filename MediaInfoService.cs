@@ -1,8 +1,10 @@
 //MediaInfoService.cs
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.MediaInfo;
+using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Model.IO;
-using MediaBrowser.Common.Logging;
+using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.MediaInfo;
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -40,14 +42,10 @@ namespace evermedia
             if (item?.Id is not {} id)
                 return;
 
-            // 防重入：同一个 item.Id 只允许一个任务执行
             var task = _ongoingTasks.GetOrAdd(id, _ => ProcessItemInternalAsync(item));
             await task;
         }
 
-        /// <summary>
-        /// 实际处理逻辑（仅由一个任务执行）
-        /// </summary>
         private async Task ProcessItemInternalAsync(BaseItem item)
         {
             try
@@ -59,10 +57,7 @@ namespace evermedia
                     return;
                 }
 
-                // 取第一个 MediaSource（.strm 通常只有一个）
                 var mediaSource = probeResult.MediaSources[0];
-
-                // ✅ 验证阶段：仅打印探测结果，暂不写入 .medinfo 或数据库
                 _logger.Info("Successfully probed media info for '{Name}': " +
                              "Container={Container}, Duration={Duration}s, VideoStreams={V}, AudioStreams={A}",
                     item.Name,
@@ -77,14 +72,10 @@ namespace evermedia
             }
             finally
             {
-                // 清理并发控制字典
                 _ongoingTasks.TryRemove(item.Id, out _);
             }
         }
 
-        /// <summary>
-        /// 探测 .strm 指向的真实媒体路径
-        /// </summary>
         private async Task<MediaProbeResult?> ProbeAndExtractMediaInfoAsync(BaseItem item)
         {
             if (string.IsNullOrEmpty(item.Path))
@@ -108,7 +99,7 @@ namespace evermedia
                 return null;
             }
 
-            // 🚫 不探测远程 URL（阶段二验证聚焦本地文件）
+            // 🚫 不探测远程 URL
             if (realPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 realPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
