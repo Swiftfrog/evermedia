@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
+using MediaBrowser.Controller.Providers; //MetadataRefreshOptions
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
@@ -115,7 +116,7 @@ namespace evermedia
                 item.Container = sanitizedSource.Container;
                 item.TotalBitrate = sanitizedSource.Bitrate ?? 0;
 
-                var videoStream = sanitizedSource.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Video);
+                var videoStream = sanitizedSource.MediaStreams?.FirstOrDefault(s => s.Type == MediaStreamType.Video);
                 if (videoStream != null)
                 {
                     item.Width = videoStream.Width ?? 0;
