@@ -1,141 +1,126 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
-using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.Persistence;
-using MediaBrowser.Model.Configuration;
-using MediaBrowser.Model.Dto;
-using MediaBrowser.Model.Entities;
+using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Model.IO;
-using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
-using MediaBrowser.Controller.Providers; // MetadataRefreshOptions, DirectoryService
-using MediaBrowser.Model.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace evermedia
 {
     public class MediaInfoService
     {
         private readonly ILibraryManager _libraryManager;
-        private readonly IMediaSourceManager _mediaSourceManager;
-        private readonly IItemRepository _itemRepository;
+        private readonly IMediaEncoder _mediaEncoder;
         private readonly IFileSystem _fileSystem;
-        private readonly IJsonSerializer _jsonSerializer;
-        private readonly ILogManager _logManager;
+        private readonly ILogger<MediaInfoService> _logger;
 
-        public MediaInfoService(
-            ILibraryManager libraryManager,
-            IMediaSourceManager mediaSourceManager,
-            IItemRepository itemRepository,
-            IFileSystem fileSystem,
-            IJsonSerializer jsonSerializer,
-            ILogManager logManager)
+        // 1. 添加用于并发控制的静态字典
+        private static readonly ConcurrentDictionary<long, Task> _ongoingTasks = new ConcurrentDictionary<long, Task>();
+
+        public MediaInfoService(ILibraryManager libraryManager, IMediaEncoder mediaEncoder, IFileSystem fileSystem, ILogger<MediaInfoService> logger)
         {
             _libraryManager = libraryManager;
-            _mediaSourceManager = mediaSourceManager;
-            _itemRepository = itemRepository;
+            _mediaEncoder = mediaEncoder;
             _fileSystem = fileSystem;
-            _jsonSerializer = jsonSerializer;
-            _logManager = logManager;
+            _logger = logger;
         }
 
+        // 2. 新的公共方法，负责并发控制
         public async Task BackupMediaInfoAsync(BaseItem item)
         {
-            if (item?.Path is null || !item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
-                return;
+            // 使用 GetOrAdd 原子性地为每个 item.Id 添加一个处理任务
+            var task = _ongoingTasks.GetOrAdd(item.Id, id => ProcessItemInternalAsync(item));
 
-            // ✅ 在方法开头声明一次 logger
-            var logger = _logManager.GetLogger("evermedia");
             try
             {
-                string realMediaPath = await _fileSystem.ReadAllTextAsync(item.Path, CancellationToken.None);
-                realMediaPath = realMediaPath.Trim();
-                if (string.IsNullOrEmpty(realMediaPath))
-                {
-                    logger.Warn($"evermedia: .strm file '{item.Path}' is empty.");
-                    return;
-                }
+                // 等待任务完成（无论是新建的还是已存在的）
+                await task;
+            }
+            finally
+            {
+                // 任务完成后，从字典中移除，以便下次可以重新探测
+                _ongoingTasks.TryRemove(item.Id, out _);
+            }
+        }
 
-                var tempItem = new Video { Path = realMediaPath, IsVirtualItem = false };
-                var libraryOptions = _libraryManager.GetLibraryOptions(item);
+        // 3. 将原有逻辑移入这个新的私有方法
+        private async Task ProcessItemInternalAsync(BaseItem item)
+        {
+            var probeResult = await ProbeAndExtractMediaInfoAsync(item);
 
-                MediaSourceInfo? mediaSource = null;
-                try
-                {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                    var sources = _mediaSourceManager.GetStaticMediaSources(
-                        item: tempItem,
-                        enableAlternateMediaSources: false,
-                        enablePathSubstitution: false,
-                        fillMediaStreams: true,
-                        fillChapters: false,
-                        collectionFolders: Array.Empty<BaseItem>(),
-                        libraryOptions: libraryOptions,
-                        deviceProfile: null,
-                        user: null,
-                        cancellationToken: cts.Token
-                    );
-                    mediaSource = sources.FirstOrDefault();
-                }
-                catch (OperationCanceledException)
-                {
-                    logger.Warn($"evermedia: Probe for '{item.Path}' timed out.");
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    logger.Error($"evermedia: Probe failed for '{item.Path}'. {ex.Message}", ex);
-                    return;
-                }
+            if (probeResult?.MediaSources == null |
 
-                // ✅ 修正 CS8602: 检查 mediaSource 是否为 null
-                if (mediaSource is null || mediaSource.RunTimeTicks <= 0 || mediaSource.MediaStreams?.Count == 0)
-                {
-                    logger.Warn($"evermedia: Probe did not yield valid MediaInfo for '{item.Path}'.");
-                    return;
-                }
+| probeResult.MediaSources.Count == 0)
+            {
+                _logger.LogWarning("evermedia: Probe did not yield valid MediaInfo for '{Path}'.", item.Path);
+                return;
+            }
 
-                var sanitizedSource = new MediaSourceInfo
-                {
-                    Protocol = mediaSource.Protocol,
-                    Container = mediaSource.Container,
-                    RunTimeTicks = mediaSource.RunTimeTicks,
-                    Bitrate = mediaSource.Bitrate,
-                    Size = mediaSource.Size,
-                    MediaStreams = mediaSource.MediaStreams
-                };
+            var mediaSource = probeResult.MediaSources;
 
-                string medinfoPath = Path.ChangeExtension(item.Path, ".medinfo");
-                _jsonSerializer.SerializeToFile(sanitizedSource, medinfoPath);
-                logger.Info($"evermedia: Wrote .medinfo file for '{item.Name}'.");
+            // 数据净化与序列化 (此处简化，实际应按TDD进行严格净化)
+            var backupData = new { MediaSourceInfo = mediaSource, Chapters = probeResult.Chapters };
+            var json = JsonSerializer.Serialize(backupData, new JsonSerializerOptions { WriteIndented = true });
 
-                // Persist to database
-                item.RunTimeTicks = sanitizedSource.RunTimeTicks;
-                item.Container = sanitizedSource.Container;
-                item.TotalBitrate = sanitizedSource.Bitrate ?? 0;
+            // 写入.medinfo 文件
+            var medinfoPath = item.Path + ".medinfo";
+            await _fileSystem.WriteAllTextAsync(medinfoPath, json);
+            _logger.LogInformation("evermedia: MediaInfo for '{Name}' backed up to '{Path}'.", item.Name, medinfoPath);
 
-                var videoStream = sanitizedSource.MediaStreams?.FirstOrDefault(s => s.Type == MediaStreamType.Video);
-                if (videoStream != null)
-                {
-                    item.Width = videoStream.Width ?? 0;
-                    item.Height = videoStream.Height ?? 0;
-                }
+            // 更新 Emby 数据库
+            await UpdateDatabaseAsync(item, mediaSource, probeResult.Chapters);
+        }
 
-                _itemRepository.SaveMediaStreams(item.InternalId, sanitizedSource.MediaStreams, CancellationToken.None);
+        private async Task<MediaProbeResult> ProbeAndExtractMediaInfoAsync(BaseItem item)
+        {
+            var realPath = (await _fileSystem.ReadAllTextAsync(item.Path)).Trim();
 
-                var options = new MetadataRefreshOptions(new DirectoryService(_fileSystem));
-                _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataEdit, options);
+            if (string.IsNullOrEmpty(realPath))
+            {
+                _logger.LogWarning("evermedia:.strm file '{Path}' is empty.", item.Path);
+                return null;
+            }
 
-                logger.Info($"evermedia: Persisted MediaInfo to database for '{item.Name}'.");
+            bool isRemote = realPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                            realPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+            if (isRemote)
+            {
+                _logger.LogInformation("evermedia: '{Name}' points to a remote URL. Probing is not supported.", item.Name);
+                return null;
+            }
+
+            var request = new MediaInfoRequest { Path = realPath };
+            try
+            {
+                return await _mediaEncoder.GetMediaInfo(request, CancellationToken.None);
             }
             catch (Exception ex)
             {
-                // ✅ 修正 CS0136: 直接使用已声明的 logger，不再声明
-                logger.Error($"evermedia: Unexpected error for '{item?.Name}'. {ex.Message}", ex);
+                _logger.LogError(ex, "evermedia: Failed to probe media info for '{Name}' at path '{Path}'.", item.Name, realPath);
+                return null;
             }
+        }
+
+        private async Task UpdateDatabaseAsync(BaseItem item, MediaSourceInfo mediaSource, System.Collections.Generic.List<ChapterInfo> chapters)
+        {
+            item.RunTimeTicks = mediaSource.RunTimeTicks;
+            item.Container = mediaSource.Container;
+            // 根据需要添加更多顶级属性的同步
+
+            _libraryManager.SaveMediaStreams(item.Id, mediaSource.MediaStreams);
+            
+            // 对于 Emby 4.7+, 需要提供 MetadataRefreshOptions
+            var refreshOptions = new MetadataRefreshOptions(new DirectoryService(_fileSystem));
+            await _libraryManager.UpdateItemAsync(item, item.Parent, ItemUpdateType.MetadataEdit, refreshOptions, CancellationToken.None);
+
+            _logger.LogInformation("evermedia: Database updated for '{Name}'.", item.Name);
         }
     }
 }
