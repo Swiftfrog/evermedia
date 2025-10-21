@@ -1,13 +1,13 @@
 //MediaInfoService.cs
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding; // MediaInfoRequest
-using MediaBrowser.Model.Dto; // MediaSourceInfo
+using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.MediaInfo; // ← 包含 MediaSourceInfo, MediaInfoReques
+using MediaBrowser.Model.MediaInfo;
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
 
@@ -20,7 +20,8 @@ namespace evermedia
         private readonly IFileSystem _fileSystem;
         private readonly ILogger _logger;
 
-        private static readonly ConcurrentDictionary<long, Task> _ongoingTasks = new();
+        // ✅ 修复：BaseItem.Id 是 Guid
+        private static readonly ConcurrentDictionary<Guid, Task> _ongoingTasks = new();
 
         public MediaInfoService(
             ILibraryManager libraryManager,
@@ -36,10 +37,10 @@ namespace evermedia
 
         public async Task BackupMediaInfoAsync(BaseItem? item)
         {
-            if (item?.Id is not {} id)
+            if (item?.Id == Guid.Empty)
                 return;
 
-            var task = _ongoingTasks.GetOrAdd(id, _ => ProcessItemInternalAsync(item));
+            var task = _ongoingTasks.GetOrAdd(item.Id, _ => ProcessItemInternalAsync(item));
             await task;
         }
 
@@ -47,7 +48,6 @@ namespace evermedia
         {
             try
             {
-                // ✅ 直接返回 MediaSourceInfo
                 var mediaSource = await ProbeAndExtractMediaInfoAsync(item);
                 if (mediaSource == null)
                 {
@@ -55,17 +55,27 @@ namespace evermedia
                     return;
                 }
 
+                // ✅ 修复：List<T>.Count 是实例属性，无需 using
+                var videoStreams = 0;
+                var audioStreams = 0;
+                foreach (var stream in mediaSource.MediaStreams)
+                {
+                    if (stream.Type == MediaStreamType.Video) videoStreams++;
+                    else if (stream.Type == MediaStreamType.Audio) audioStreams++;
+                }
+
                 _logger.Info("Successfully probed media info for '{Name}': " +
                              "Container={Container}, Duration={Duration}s, VideoStreams={V}, AudioStreams={A}",
                     item.Name,
                     mediaSource.Container,
                     (mediaSource.RunTimeTicks / TimeSpan.TicksPerSecond),
-                    mediaSource.MediaStreams.Count(s => s.Type == MediaStreamType.Video),
-                    mediaSource.MediaStreams.Count(s => s.Type == MediaStreamType.Audio));
+                    videoStreams,
+                    audioStreams);
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Unexpected error while probing '{Name}'", item.Name);
+                // ✅ 修复：ILogger 不支持 exception 参数
+                _logger.Error("Unexpected error while probing '{Name}': {Message}", item.Name, ex.Message);
             }
             finally
             {
@@ -86,7 +96,7 @@ namespace evermedia
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Failed to read .strm file: {Path}", item.Path);
+                _logger.Warn("Failed to read .strm file {Path}: {Message}", item.Path, ex.Message);
                 return null;
             }
 
@@ -96,7 +106,6 @@ namespace evermedia
                 return null;
             }
 
-            // 🚫 跳过远程 URL
             if (realPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 realPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
@@ -104,16 +113,10 @@ namespace evermedia
                 return null;
             }
 
-            // ✅ 直接探测并返回 MediaSourceInfo
             try
             {
-                var request = new MediaInfoRequest
-                {
-                    Path = realPath,
-                    MediaType = Dlna.ProfileType.Video
-                };
-
-                // 返回类型是 MediaSourceInfo，不是 MediaProbeResult
+                // ✅ 修复：MediaInfoRequest 正确用法
+                var request = new MediaInfoRequest(realPath);
                 var mediaSource = await _mediaEncoder.GetMediaInfo(request, CancellationToken.None);
                 return mediaSource;
             }
@@ -129,7 +132,7 @@ namespace evermedia
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to probe media at '{Path}'", realPath);
+                _logger.Error("Failed to probe media at '{Path}': {Message}", realPath, ex.Message);
                 return null;
             }
         }

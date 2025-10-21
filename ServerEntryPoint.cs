@@ -45,26 +45,27 @@ namespace evermedia
             {
                 var item = e.Item;
 
-                // 1. 过滤空项或非 .strm 文件
                 if (item == null || string.IsNullOrEmpty(item.Path))
                     return;
 
                 if (!item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
                     return;
 
-                // 2. 忽略纯播放状态变更（避免刷新时重复触发）
-                if (e.UpdateReason == ItemUpdateType.PlaybackStart ||
-                    e.UpdateReason == ItemUpdateType.PlaybackStop)
+                // ✅ 修复：ItemUpdateType 不包含 PlaybackStart/Stop
+                // 改为检查是否仅为 UserData 变更（播放进度等）
+                if (e.UpdateReason == ItemUpdateType.None || 
+                    e.UpdateReason == ItemUpdateType.ImageUpdate)
                 {
+                    // 可能是播放状态变更，跳过
                     return;
                 }
 
-                // 3. 委托给服务层处理（自动包含并发控制）
                 await _mediaInfoService.BackupMediaInfoAsync(item);
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Unexpected error in OnLibraryItemChanged for item: {Path}", e.Item?.Path ?? "null");
+                // ✅ 修复：ILogger 不支持 exception 参数
+                _logger.Error("Unexpected error in OnLibraryItemChanged: {Message}", ex.Message);
             }
         }
     }
