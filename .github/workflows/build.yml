@@ -30,7 +30,7 @@ jobs:
       run: mkdir -p ./artifacts/plugins
 
     - name: Copy DLL to Artifacts
-      run: cp ./bin/Release/net8.0/evermedia.dll ./artifacts/plugins/
+      run: cp ./bin/Release/evermedia.dll ./artifacts/plugins/
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4

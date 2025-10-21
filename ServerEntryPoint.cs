@@ -16,7 +16,7 @@ namespace evermedia
     {
         private readonly ILibraryManager _libraryManager;
         private readonly ILogManager _logManager;
-        private ILogger _logger;
+        private ILogger _logger = null!;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerEntryPoint"/> class.
@@ -47,7 +47,7 @@ namespace evermedia
         /// <summary>
         /// Handles the ItemAdded event.
         /// </summary>
-        private void OnLibraryManagerItemAdded(object sender, ItemChangeEventArgs e)
+        private void OnLibraryManagerItemAdded(object sender?, ItemChangeEventArgs e)
         {
             ProcessStrmItem(e.Item);
         }
@@ -55,7 +55,7 @@ namespace evermedia
         /// <summary>
         /// Handles the ItemUpdated event.
         /// </summary>
-        private void OnLibraryManagerItemUpdated(object sender, ItemChangeEventArgs e)
+        private void OnLibraryManagerItemUpdated(object sender?, ItemChangeEventArgs e)
         {
             ProcessStrmItem(e.Item);
         }

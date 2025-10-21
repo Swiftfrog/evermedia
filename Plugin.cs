@@ -35,7 +35,7 @@ namespace evermedia
         /// <summary>
         /// Gets the singleton instance of the plugin.
         /// </summary>
-        public static Plugin Instance { get; private set; }
+        public static Plugin? Instance { get; private set; }
 
         /// <summary>
         /// Gets the description of the plugin.
