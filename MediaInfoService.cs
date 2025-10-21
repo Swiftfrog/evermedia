@@ -32,6 +32,8 @@ namespace evermedia
         private readonly IFileSystem _fileSystem;
         private readonly IJsonSerializer _jsonSerializer;
         private readonly ILogManager _logManager;
+        private readonly IMediaEncoder _mediaEncoder;
+        private readonly IMediaEncoder _mediaEncoder;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MediaInfoService"/> class.
@@ -42,7 +44,8 @@ namespace evermedia
             IItemRepository itemRepository,
             IFileSystem fileSystem,
             IJsonSerializer jsonSerializer,
-            ILogManager logManager)
+            ILogManager logManager
+            IMediaEncoder _mediaEncoder;)
         {
             _libraryManager = libraryManager;
             _mediaEncoder = mediaEncoder;
@@ -50,6 +53,7 @@ namespace evermedia
             _fileSystem = fileSystem;
             _jsonSerializer = jsonSerializer;
             _logManager = logManager;
+            _mediaEncoder = mediaEncoder;
         }
 
         /// <summary>
@@ -79,6 +83,7 @@ namespace evermedia
                 MediaSourceInfo? mediaSource = null;
                 try
                 {
+
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15)); // 15-second timeout
 
                     var request = new MediaInfoRequest
@@ -90,6 +95,7 @@ namespace evermedia
                     var probeResult = await _mediaEncoder.GetMediaInfo(request, cts.Token);
                     mediaSource = probeResult.MediaSource;
                 }
+
                 catch (OperationCanceledException)
                 {
                     logger.Warn($"evermedia: Probe for '{item.Path}' timed out.");
