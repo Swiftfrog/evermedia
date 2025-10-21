@@ -6,30 +6,26 @@ using MediaBrowser.Model.Logging;
 
 namespace evermedia
 {
-    /// <summary>
-    /// The server entry point for the evermedia plugin.
-    /// </summary>
     public class ServerEntryPoint : IServerEntryPoint
     {
         private readonly ILibraryManager _libraryManager;
         private readonly MediaInfoService _mediaInfoService;
-        private ILogger _logger = null!; // Non-null after Run()
+        private readonly ILogManager _logManager;
+        private ILogger _logger = null!;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ServerEntryPoint"/> class.
-        /// </summary>
-        public ServerEntryPoint(ILibraryManager libraryManager, MediaInfoService mediaInfoService)
+        public ServerEntryPoint(
+            ILibraryManager libraryManager,
+            MediaInfoService mediaInfoService,
+            ILogManager logManager)
         {
             _libraryManager = libraryManager;
             _mediaInfoService = mediaInfoService;
+            _logManager = logManager;
         }
 
-        /// <summary>
-        /// Called when the plugin is loaded.
-        /// </summary>
         public void Run()
         {
-            _logger = Plugin.Instance.Logger;
+            _logger = _logManager.GetLogger("evermedia");
             _logger.Info("evermedia: Initializing...");
 
             _libraryManager.ItemAdded += OnLibraryManagerItemChanged;
@@ -38,32 +34,25 @@ namespace evermedia
             _logger.Info("evermedia: Ready and listening for item events.");
         }
 
-        /// <summary>
-        /// Handles both ItemAdded and ItemUpdated events.
-        /// </summary>
         private void OnLibraryManagerItemChanged(object? sender, ItemChangeEventArgs e)
         {
             ProcessStrmItem(e.Item);
         }
 
-        /// <summary>
-        /// Processes a .strm item by probing its real media source and backing up MediaInfo.
-        /// </summary>
         private async void ProcessStrmItem(BaseItem? item)
         {
+            if (item is null) return; // 避免 CS8604 警告
+
             try
             {
                 await _mediaInfoService.BackupMediaInfoAsync(item);
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, $"evermedia: Error in event handler for item '{item?.Name}'.");
+                _logger.Error($"evermedia: Error processing item '{item.Name}'. {ex.Message}", ex);
             }
         }
 
-        /// <summary>
-        /// Called when the plugin is unloaded.
-        /// </summary>
         public void Dispose()
         {
             _libraryManager.ItemAdded -= OnLibraryManagerItemChanged;
