@@ -47,6 +47,7 @@ namespace evermedia
             if (item?.Path is null || !item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
                 return;
 
+            // ✅ 在方法开头声明一次 logger
             var logger = _logManager.GetLogger("evermedia");
             try
             {
@@ -69,7 +70,7 @@ namespace evermedia
                         item: tempItem,
                         enableAlternateMediaSources: false,
                         enablePathSubstitution: false,
-                        fillMediaStreams: true,  // ✅ 必须为 true
+                        fillMediaStreams: true,
                         fillChapters: false,
                         collectionFolders: Array.Empty<BaseItem>(),
                         libraryOptions: libraryOptions,
@@ -90,7 +91,8 @@ namespace evermedia
                     return;
                 }
 
-                if (mediaSource?.RunTimeTicks <= 0 || mediaSource.MediaStreams?.Count == 0)
+                // ✅ 修正 CS8602: 检查 mediaSource 是否为 null
+                if (mediaSource is null || mediaSource.RunTimeTicks <= 0 || mediaSource.MediaStreams?.Count == 0)
                 {
                     logger.Warn($"evermedia: Probe did not yield valid MediaInfo for '{item.Path}'.");
                     return;
@@ -131,7 +133,7 @@ namespace evermedia
             }
             catch (Exception ex)
             {
-                var logger = _logManager.GetLogger("evermedia");
+                // ✅ 修正 CS0136: 直接使用已声明的 logger，不再声明
                 logger.Error($"evermedia: Unexpected error for '{item?.Name}'. {ex.Message}", ex);
             }
         }
