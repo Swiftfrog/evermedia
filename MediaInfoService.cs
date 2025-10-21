@@ -1,11 +1,11 @@
-//MediaInfoService.cs
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
+using MediaBrowser.Model.Dlna;
+using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.MediaInfo;
-using MediaBrowser.Model.Dto;
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -21,7 +21,7 @@ namespace evermedia
         private readonly IFileSystem _fileSystem;
         private readonly ILogger _logger;
 
-        // ✅ 修复：BaseItem.Id 是 Guid
+        // 并发控制：BaseItem.Id 是 Guid
         private static readonly ConcurrentDictionary<Guid, Task> _ongoingTasks = new();
 
         public MediaInfoService(
@@ -56,13 +56,11 @@ namespace evermedia
                     return;
                 }
 
-                // ✅ 修复：List<T>.Count 是实例属性，无需 using
-                var videoStreams = 0;
-                var audioStreams = 0;
+                int videoCount = 0, audioCount = 0;
                 foreach (var stream in mediaSource.MediaStreams)
                 {
-                    if (stream.Type == MediaStreamType.Video) videoStreams++;
-                    else if (stream.Type == MediaStreamType.Audio) audioStreams++;
+                    if (stream.Type == MediaStreamType.Video) videoCount++;
+                    else if (stream.Type == MediaStreamType.Audio) audioCount++;
                 }
 
                 _logger.Info("Successfully probed media info for '{Name}': " +
@@ -70,12 +68,11 @@ namespace evermedia
                     item.Name,
                     mediaSource.Container,
                     (mediaSource.RunTimeTicks / TimeSpan.TicksPerSecond),
-                    videoStreams,
-                    audioStreams);
+                    videoCount,
+                    audioCount);
             }
             catch (Exception ex)
             {
-                // ✅ 修复：ILogger 不支持 exception 参数
                 _logger.Error("Unexpected error while probing '{Name}': {Message}", item.Name, ex.Message);
             }
             finally
@@ -107,6 +104,7 @@ namespace evermedia
                 return null;
             }
 
+            // 跳过远程 URL
             if (realPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 realPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
@@ -116,9 +114,11 @@ namespace evermedia
 
             try
             {
-                // ✅ 修复：MediaInfoRequest 正确用法
-                var request = new MediaInfoRequest(realPath);
-                var mediaSource = await _mediaEncoder.GetMediaInfo(request, CancellationToken.None);
+                // ✅ 正确调用方式：直接传路径 + ProfileType
+                var mediaSource = await _mediaEncoder.GetMediaInfo(
+                    realPath,
+                    ProfileType.Video,
+                    CancellationToken.None);
                 return mediaSource;
             }
             catch (FileNotFoundException)
