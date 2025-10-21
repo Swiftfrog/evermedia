@@ -47,7 +47,7 @@ namespace evermedia
         /// <summary>
         /// Handles the ItemAdded event.
         /// </summary>
-        private void OnLibraryManagerItemAdded(object sender?, ItemChangeEventArgs e)
+        private void OnLibraryManagerItemAdded(object? sender, ItemChangeEventArgs e)
         {
             ProcessStrmItem(e.Item);
         }
@@ -55,7 +55,7 @@ namespace evermedia
         /// <summary>
         /// Handles the ItemUpdated event.
         /// </summary>
-        private void OnLibraryManagerItemUpdated(object sender?, ItemChangeEventArgs e)
+        private void OnLibraryManagerItemUpdated(object? sender, ItemChangeEventArgs e)
         {
             ProcessStrmItem(e.Item);
         }
