@@ -2,9 +2,9 @@ name: Build evermedia Plugin
 
 on:
   push:
-    branches: [ main, st2 ]
+    branches: [ main, v1 ]
   pull_request:
-    branches: [ main, st2 ]
+    branches: [ main, v1 ]
   workflow_dispatch:
 
 jobs:
@@ -20,26 +20,20 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    # 修正：工作目录指向 'evermedia' (全小写)
     - name: Restore dependencies
       run: dotnet restore
-      working-directory: ./evermedia
 
-    # 修正：工作目录指向 'evermedia' (全小写)
     - name: Build the project
       run: dotnet build --no-restore --configuration Release
-      working-directory: ./evermedia
 
     - name: Create Artifacts Directory
-      run: mkdir -p ${{ github.workspace }}/artifacts/plugins
+      run: mkdir -p ./artifacts/plugins
 
-    # 修正：源路径和 .dll 文件名均为 'evermedia.dll' (全小写)
     - name: Copy DLL to Artifacts
-      run: cp ${{ github.workspace }}/evermedia/bin/Release/net8.0/evermedia.dll ${{ github.workspace }}/artifacts/plugins/
+      run: cp ./bin/Release/net8.0/evermedia.dll ./artifacts/plugins/
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        # 修正：产物名称为 'evermedia-plugin' (全小写)
         name: evermedia-plugin
-        path: ${{ github.workspace }}/artifacts/
+        path: ./artifacts/
