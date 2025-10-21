@@ -15,6 +15,9 @@ using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Providers; // 👈 MetadataRefreshOptions
 using MediaBrowser.Model.Serialization;
+using MediaBrowser.Controller.MediaEncoding; // IMediaEncoder
+using MediaBrowser.Model.Dlna;              // DlnaProfileType
+
 
 namespace evermedia
 {
@@ -26,6 +29,8 @@ namespace evermedia
         private readonly IFileSystem _fileSystem;
         private readonly IJsonSerializer _jsonSerializer;
         private readonly ILogManager _logManager;
+        private readonly IMediaEncoder _mediaEncoder;
+        private readonly IMediaEncoder _mediaEncoder;
 
         public MediaInfoService(
             ILibraryManager libraryManager,
@@ -33,7 +38,8 @@ namespace evermedia
             IItemRepository itemRepository,
             IFileSystem fileSystem,
             IJsonSerializer jsonSerializer,
-            ILogManager logManager)
+            ILogManager logManager
+            IMediaEncoder _mediaEncoder;)
         {
             _libraryManager = libraryManager;
             _mediaSourceManager = mediaSourceManager;
@@ -41,6 +47,7 @@ namespace evermedia
             _fileSystem = fileSystem;
             _jsonSerializer = jsonSerializer;
             _logManager = logManager;
+            _mediaEncoder = mediaEncoder;
         }
 
         public async Task BackupMediaInfoAsync(BaseItem item)
@@ -63,23 +70,32 @@ namespace evermedia
                 var libraryOptions = _libraryManager.GetLibraryOptions(item);
 
                 MediaSourceInfo? mediaSource = null;
+
                 try
                 {
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                    var sources = _mediaSourceManager.GetStaticMediaSources(
-                        tempItem,
-                        enableAlternateMediaSources: false,
-                        enablePathSubstitution: false,
-                        fillChapters: false,
-                        fillMediaStreams: true, // 👈 新增参数
-                        collectionFolders: Array.Empty<BaseItem>(),
-                        libraryOptions: libraryOptions,
-                        deviceProfile: null,
-                        user: null,
-                        cancellationToken: cts.Token
-                    );
-                    mediaSource = sources.FirstOrDefault();
+    
+                    var request = new MediaInfoRequest
+                    {
+                        MediaSource = new MediaSourceInfo { Path = realMediaPath },
+                        MediaType = DlnaProfileType.Video
+                    };
+
+                    var probeResult = await _mediaEncoder.GetMediaInfo(request, cts.Token);
+                    var mediaSource = probeResult.MediaSource;
+
+                    if (mediaSource?.RunTimeTicks > 0 && mediaSource.MediaStreams?.Count > 0)
+                    {
+                            // ... [后续持久化逻辑]
+                    }
+                    else
+                    {
+                        logger.Warn($"evermedia: Probe returned empty MediaSource for '{item.Path}'.");
+                        return;
+                    }
                 }
+
+
                 catch (OperationCanceledException)
                 {
                     logger.Warn($"evermedia: Probe for '{item.Path}' timed out.");
