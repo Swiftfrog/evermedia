@@ -1,3 +1,7 @@
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
+using System.Threading.Tasks;
+
 // 2. ServerEntryPoint.cs - 最简事件订阅
 public class ServerEntryPoint : IServerEntryPoint
 {
