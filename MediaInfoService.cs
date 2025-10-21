@@ -54,9 +54,7 @@ namespace evermedia
         {
             var probeResult = await ProbeAndExtractMediaInfoAsync(item);
 
-            if (probeResult?.MediaSources == null |
-
-| probeResult.MediaSources.Count == 0)
+            if (probeResult?.MediaSources == null || probeResult.MediaSources.Count == 0)
             {
                 _logger.LogWarning("evermedia: Probe did not yield valid MediaInfo for '{Path}'.", item.Path);
                 return;
