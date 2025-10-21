@@ -1,11 +1,10 @@
-name: Build evermedia Plugin
+name: Build Plugin
 
 on:
   push:
-    branches: [ main, st2, st3 ]
+    branches: [ main, n1 ]
   pull_request:
-    branches: [ main, st2, st3 ]
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   build:
@@ -15,25 +14,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup .NET
+    - name: Setup .NET 8 SDK
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: '8.0.x'
 
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build the project
-      run: dotnet build --no-restore --configuration Release
+    - name: Build plugin
+      run: dotnet build --no-restore -c Release
 
-    - name: Create Artifacts Directory
-      run: mkdir -p ./artifacts/plugins
+    - name: Publish output
+      run: dotnet publish --no-build -c Release -o ./publish
 
-    - name: Copy DLL to Artifacts
-      run: cp ./bin/Release/evermedia.dll ./artifacts/plugins/
-
-    - name: Upload Artifact
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: evermedia-plugin
-        path: ./artifacts/
+        path: ./publish/
