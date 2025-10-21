@@ -1,10 +1,11 @@
 //MediaInfoService.cs
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding;
+using MediaBrowser.Controller.MediaEncoding; // MediaInfoRequest
+using MediaBrowser.Model.Dto; // MediaSourceInfo
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.MediaInfo; // ← 包含 MediaSourceInfo, MediaInfoRequest
+using MediaBrowser.Model.MediaInfo; // ← 包含 MediaSourceInfo, MediaInfoReques
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
