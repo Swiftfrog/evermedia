@@ -4,25 +4,31 @@ using MediaBrowser.Model.Serialization;
 using MediaBrowser.Common.Configuration;
 using System.Collections.Generic;
 
-public class EverMediaPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
+namespace evermedia
 {
-    public EverMediaPlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer) 
-        : base(applicationPaths, xmlSerializer)
+    public class EverMediaPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
-        Instance = this;
-    }
-    
-    public static EverMediaPlugin Instance { get; private set; }
-    
-    public IEnumerable<PluginPageInfo> GetPages()
-    {
-        return new[]
+        public EverMediaPlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer) 
+            : base(applicationPaths, xmlSerializer)
         {
-            new PluginPageInfo
+            Instance = this;
+        }
+
+        // 必须实现 Name 属性（修复 CS0534）
+        public override string Name => "EverMedia";
+
+        public static EverMediaPlugin Instance { get; private set; }
+
+        public IEnumerable<PluginPageInfo> GetPages()
+        {
+            return new[]
             {
-                Name = "evermedia",
-                EmbeddedResourcePath = "evermedia.ConfigurationPage.html"
-            }
-        };
+                new PluginPageInfo
+                {
+                    Name = "evermedia",
+                    EmbeddedResourcePath = "evermedia.ConfigurationPage.html"
+                }
+            };
+        }
     }
 }
