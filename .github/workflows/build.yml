@@ -1,73 +1,45 @@
-name: Build
+name: Build evermedia Plugin
 
 on:
   push:
-    branches: [ "main", "dev" ] # Adjust branches as needed
+    branches: [ main, st2 ]
   pull_request:
-    branches: [ "main" ]
-
-env:
-  PLUGIN_NAME: EmbyMedia # Match your plugin name
-  PLUGIN_DLL_NAME: EmbyMedia.Plugin.dll # The expected name of your compiled plugin DLL
+    branches: [ main, st2 ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest # Using Windows for ILRepack
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
+    # 修正：工作目录指向 'evermedia' (全小写)
     - name: Restore dependencies
       run: dotnet restore
+      working-directory: ./evermedia
 
-    - name: Build
-      run: dotnet build --no-restore -c Release
+    # 修正：工作目录指向 'evermedia' (全小写)
+    - name: Build the project
+      run: dotnet build --no-restore --configuration Release
+      working-directory: ./evermedia
 
-    - name: Find Plugin DLL
-      id: find_dll
-      run: |
-        # Find the specific plugin DLL file
-        $dllPath = Get-ChildItem -Path "./bin/Release/net8.0/" -Filter "${{ env.PLUGIN_DLL_NAME }}" -File
-        if ($null -eq $dllPath) {
-            Write-Error "Main plugin DLL '${{ env.PLUGIN_DLL_NAME }}' not found in ./bin/Release/net8.0/"
-            exit 1
-        }
-        # Output the filename only
-        $dllFileName = $dllPath.Name
-        echo "DLL_PATH=$dllFileName" >> $env:GITHUB_ENV
-        echo "Found main plugin DLL: $dllFileName"
-      shell: pwsh
+    - name: Create Artifacts Directory
+      run: mkdir -p ${{ github.workspace }}/artifacts/plugins
 
-    - name: Extract Version from .csproj
-      id: extract_version
-      run: |
-        $csprojContent = Get-Content -Path "EmbyMedia.Plugin.csproj" -Raw
-        # Match the AssemblyVersion inside the <AssemblyVersion> tag
-        $versionMatch = [regex]::Match($csprojContent, '<AssemblyVersion>(.*?)</AssemblyVersion>')
-        if ($versionMatch.Success) {
-            $version = $versionMatch.Groups[1].Value
-            echo "VERSION=$version" >> $env:GITHUB_ENV
-            echo "Extracted version from .csproj: $version"
-        } else {
-            Write-Error "AssemblyVersion not found in EmbyMedia.Plugin.csproj"
-            exit 1
-        }
-      shell: pwsh
-
-    - name: Pack
-      run: |
-        Compress-Archive -Path "./bin/Release/net8.0/$env:DLL_PATH" -DestinationPath "${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip"
-        echo "PACKED_FILE=${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip" >> $env:GITHUB_ENV
-      shell: pwsh
+    # 修正：源路径和 .dll 文件名均为 'evermedia.dll' (全小写)
+    - name: Copy DLL to Artifacts
+      run: cp ${{ github.workspace }}/evermedia/bin/Release/net8.0/evermedia.dll ${{ github.workspace }}/artifacts/plugins/
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.PLUGIN_NAME }}-build
-        path: ${{ env.PACKED_FILE }}
-        if-no-files-found: error
+        # 修正：产物名称为 'evermedia-plugin' (全小写)
+        name: evermedia-plugin
+        path: ${{ github.workspace }}/artifacts/
