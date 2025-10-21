@@ -5,6 +5,7 @@ using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
+using MediaBrowser.Model.Dto;
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
