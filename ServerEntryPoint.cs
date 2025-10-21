@@ -2,6 +2,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Common.Logging;
 using System;
 using System.Threading.Tasks;
 
@@ -10,10 +11,13 @@ namespace evermedia
     public class ServerEntryPoint : IServerEntryPoint
     {
         private readonly ILibraryManager _libraryManager;
-        
-        public ServerEntryPoint(ILibraryManager libraryManager)
+        private readonly ILogger _logger; // ← 新增
+
+        // ← 注入 ILogManager
+        public ServerEntryPoint(ILibraryManager libraryManager, ILogManager logManager)
         {
             _libraryManager = libraryManager;
+            _logger = logManager.GetLogger(nameof(ServerEntryPoint)); // ← 创建 logger
         }
         
         public void Run()
@@ -40,9 +44,8 @@ namespace evermedia
             if (!item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
                 return;
                 
-            var logger = MediaBrowser.Common.ServiceServiceContainer.Resolve<MediaBrowser.Common.Logging.ILogManager>()
-                .GetLogger("evermedia");
-            logger.Info($"Detected .strm file: {item.Path}");
+            // ✅ 直接使用 _logger，不再通过 ServiceServiceContainer
+            _logger.Info($"Detected .strm file: {item.Path}");
         }
         
         public void Dispose()
