@@ -2,9 +2,9 @@ name: Build Plugin
 
 on:
   push:
-    branches: [ main, n1 ]
+    branches: [ main, n* ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, n* ]
 
 jobs:
   build:
