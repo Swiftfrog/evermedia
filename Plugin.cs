@@ -1,5 +1,5 @@
 // 引入必要的命名空间
-using Emby.Plugins;
+using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins; // IServerApplicationHost 在这里
 using MediaBrowser.Common.Plugins;
 using System;
