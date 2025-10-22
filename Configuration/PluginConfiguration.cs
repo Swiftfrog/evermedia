@@ -9,7 +9,6 @@ namespace EverMedia.Configuration; // 使用命名空间组织代码
 public class PluginConfiguration : BasePluginConfiguration // 继承基类
 {
     // 定义一个配置项：备份模式
-    // public 属性意味着它会被 Emby UI 自动识别并提供编辑界面
     public string BackupMode { get; set; } = "SideBySide"; // 默认值为 "SideBySide"
 
     // 定义一个配置项：中心化备份路径（当 BackupMode 为 Centralized 时使用）
