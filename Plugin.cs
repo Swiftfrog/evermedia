@@ -1,30 +1,41 @@
-// 引入必要的命名空间
+// Plugin.cs
 using MediaBrowser.Controller;
-using MediaBrowser.Controller.Plugins; // IServerApplicationHost 在这里
-using MediaBrowser.Common.Plugins;
+using MediaBrowser.Controller.Plugins; // 包含 IServerApplicationHost 和 BasePluginSimpleUI
+using MediaBrowser.Common.Plugins; // 包含 IPlugin 相关接口
 using System;
 using EverMedia.Configuration;
 
-// 注意：以下 using 语句不再需要，因为构造函数不再使用它们
-// using MediaBrowser.Model.Serialization;
-// using MediaBrowser.Common.Configuration;
-
 namespace EverMedia;
 
-public class Plugin : BasePluginSimpleUI<PluginConfiguration>
+public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 BasePluginSimpleUI
 {
     public override string Name => "EverMedia";
-    public override string Description => "Self-healing MediaInfo persistence for.strm files.";
+    public override string Description => "Self-healing MediaInfo persistence for .strm files.";
     public override Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D");
 
-    // ✅ 关键修订: 更改构造函数以匹配 BasePluginSimpleUI<T> 的要求。
-    // 它不再需要 IApplicationPaths 和 IXmlSerializer，
-    // 而是需要 IServerApplicationHost。
+    // ✅ 构造函数使用 IServerApplicationHost
     public Plugin(IServerApplicationHost applicationHost)
         : base(applicationHost) // 将 applicationHost 传递给基类
     {
-        Instance = this;
+        Instance = this; // 在构造函数中设置 Instance
     }
 
-    public static Plugin Instance { get; private set; }
+    // ✅ 静态实例
+    public static Plugin Instance { get; private set; } = null!; // 初始化为 null! 以避免未赋值警告
+
+    // BasePluginSimpleUI 已处理 Configuration、GetPluginInfo、OnUninstalling 等
+    // 以及 UI 生成所需的信息。
+
+    // OnApplicationStartup 和 OnApplicationShutdown 通常在这里定义
+    // 用于插件初始化和清理，但也可以留空或根据需要实现。
+    public void OnApplicationStartup()
+    {
+        // 在这里进行插件启动时的初始化工作
+        // Configuration 已由基类加载
+    }
+
+    public void OnApplicationShutdown()
+    {
+        // 在这里进行插件关闭时的清理工作
+    }
 }
