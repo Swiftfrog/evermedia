@@ -39,8 +39,8 @@ public class Plugin : IPlugin
         {
             Name = this.Name,
             Description = this.Description,
-            // Id 通常由 IPlugin.Id 提供，但 GetPluginInfo 也可以包含
-            Id = this.Id,
+            // PluginInfo.Id 需要是 string 类型，所以将 Guid 转换为字符串
+            Id = this.Id.ToString(), // 关键修改：将 Guid 转换为 string
             Version = this.Version.ToString()
         };
     }
