@@ -1,12 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    
+    <LangVersion>10.0</LangVersion>
+    
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    
+    </PropertyGroup>
 
   <ItemGroup>
-    <!-- 引用 Emby 4.9.1.80 的核心包 -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" />
   </ItemGroup>
 
