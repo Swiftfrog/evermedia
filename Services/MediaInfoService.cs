@@ -1,4 +1,5 @@
 // Services/MediaInfoService.cs
+using MediaBrowser.Controller;              // IServerApplicationHost
 using MediaBrowser.Controller.Entities;     // BaseItem
 using MediaBrowser.Controller.Library;      // ILibraryManager
 using MediaBrowser.Controller.Persistence;  // IItemRepository
