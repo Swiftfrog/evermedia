@@ -13,7 +13,10 @@ namespace EverMedia;
 /// </summary>
 // ✅ 关键改动 1: 继承自泛型 BasePlugin<T>，并传入您的配置类作为类型参数。
 // 这会告诉 Emby 使用 PluginConfiguration 类来自动生成 UI。
-public class Plugin : BasePlugin<PluginConfiguration>
+// ✅ 关键修订: 将基类从 BasePlugin<T> 更改为 BasePluginSimpleUI<T>。
+// 这会激活 Emby 的声明式 UI 引擎，根据你的 PluginConfiguration 类自动生成配置页面。
+public class Plugin : BasePluginSimpleUI<PluginConfiguration>
+///public class Plugin : BasePlugin<PluginConfiguration>
 {
     // --- BasePlugin<T> 必须实现的属性 ---
     public override string Name => "EverMedia";
@@ -31,11 +34,4 @@ public class Plugin : BasePlugin<PluginConfiguration>
     // --- 插件实例 ---
     public static Plugin Instance { get; private set; }
 
-    // ℹ️ 注意：以下内容已被简化或移除，因为 BasePlugin<T> 基类会处理它们：
-    // - 不再需要手动实现 Version, AssemblyFilePath, DataFolderPath 属性。
-    // - 不再需要 GetPluginInfo() 方法。
-    // - 不再需要 OnApplicationStartup(), OnApplicationShutdown(), OnUninstalling() 的基本实现。
-    //   如果需要自定义逻辑，可以重写 (override) 这些方法。
-    // - 不再需要手动声明一个 public Configuration 属性来暴露配置。
-    //   可以通过基类的 `base.Configuration` 来访问已加载的配置实例。
 }
