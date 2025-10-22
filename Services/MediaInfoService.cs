@@ -109,25 +109,25 @@ public class MediaInfoService
     {
         // ✅ 通过 IServerApplicationHost 获取插件实例，然后获取配置
         var plugin = _applicationHost.Plugins.OfType<Plugin>().FirstOrDefault();
-        return plugin?.Configuration; // 如果插件实例或配置为 null，返回 null
+        return plugin?.GetOptions(); // // ✅ 修订 1: 调用 GetOptions() 方法，而不是访问 Configuration 属性。
     }
 
     // --- 辅助方法：生成 .medinfo 文件路径 ---
     private string GetMedInfoPath(BaseItem item)
     {
+
+        // ✅ 修订 2: 将变量声明移到方法顶部，只声明一次。
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(item.Path);
+        string medInfoFileName = fileNameWithoutExtension + ".medinfo";
+
         // ✅ 在方法内部获取当前配置
         var config = GetConfiguration();
         if (config == null)
         {
              _logger.Warn("[MediaInfoService] Failed to get plugin configuration for GetMedInfoPath, using default SideBySide mode.");
              // 如果配置获取失败，返回 SideBySide 模式下的路径作为默认值
-             string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(item.Path);
-             string medInfoFileName = fileNameWithoutExtension + ".medinfo";
              return Path.Combine(item.ContainingFolderPath, medInfoFileName);
         }
-
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(item.Path);
-        string medInfoFileName = fileNameWithoutExtension + ".medinfo";
 
         // 使用配置
         if (config.BackupMode == "Centralized" && !string.IsNullOrEmpty(config.CentralizedRootPath))
