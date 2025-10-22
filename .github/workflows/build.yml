@@ -2,9 +2,9 @@ name: Build evermedia Plugin
 
 on:
   push:
-    branches: [ main, n* ]
+    branches: [ main, p* ]
   pull_request:
-    branches: [ main, n* ]
+    branches: [ main, p* ]
   workflow_dispatch:
 
 jobs:
