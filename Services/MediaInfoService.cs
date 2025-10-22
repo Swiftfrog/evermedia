@@ -10,7 +10,8 @@ using MediaBrowser.Model.Logging;           // ILogger
 using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Serialization;     // IJsonSerializer
 using System.IO; // For Path operations
-using System.Threading.Tasks; // For async/await
+using System.Threading.Tasks;               // For async/await
+using EverMedia.Configuration;              //导入 PluginConfiguration 所在的命名空间
 
 namespace EverMedia.Services; // 使用命名空间组织代码
 
