@@ -1,3 +1,4 @@
+using MediaBrowser.Controller.Entities;      // ← InternalItemsQuery
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
@@ -51,8 +52,18 @@ namespace evermedia
                 IsVirtualItem = true,
                 HasMediaStreams = false
             };
-            var strmItems = _libraryManager.GetItemList(query)
-                .FindAll(i => i.Path?.EndsWith(".strm", StringComparison.OrdinalIgnoreCase) == true);
+
+            // GetItemList 返回 BaseItem[]
+            var allItems = _libraryManager.GetItemList(query);
+            var strmItems = new List<BaseItem>();
+
+            foreach (var item in allItems)
+            {
+                if (item.Path?.EndsWith(".strm", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    strmItems.Add(item);
+                }
+            }
 
             if (strmItems.Count == 0)
             {
@@ -62,7 +73,6 @@ namespace evermedia
 
             _logger.Info($"Found {strmItems.Count} .strm items to test.");
 
-            // 构造刷新选项：启用远程内容探测
             var refreshOptions = new MetadataRefreshOptions(new DirectoryService(_logger, _fileSystem))
             {
                 EnableRemoteContentProbe = true,
@@ -79,7 +89,6 @@ namespace evermedia
 
                 try
                 {
-                    // ✅ 正确方式：使用 IProviderManager.QueueRefresh
                     _providerManager.QueueRefresh(
                         item.Id,
                         refreshOptions,
