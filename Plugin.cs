@@ -1,88 +1,68 @@
-// 必须添加此命名空间引用
-using MediaBrowser.Common.Plugins;
-using MediaBrowser.Model.Plugins;
-using System.Reflection;
+using MediaBrowser.Common.Plugins; // IPlugin 接口所在命名空间
+using System.Reflection; // 用于获取插件 GUID
 
-namespace EverMedia;
+namespace EverMedia; // 使用你的插件命名空间
 
 /// <summary>
-/// EverMedia 插件的主入口点。
-/// 实现 IPlugin 接口以与 Emby Server 集成。
+/// EverMedia 插件的主入口点，实现 IPlugin 接口。
 /// </summary>
-public class Plugin : IPlugin
+public class Plugin : IPlugin // 实现 IPlugin 接口
 {
-    // --- IPlugin 接口必须实现的属性 ---
+    // 插件的唯一标识符，使用 GUID
+    public Guid Id { get; } = new Guid("781A1B2C-3D4E-5F6A-7B8C-9D0E1F2A3B4C"); // 请替换为你的插件生成的唯一 GUID
 
+    // 插件名称
     public string Name => "EverMedia";
 
-    public string Description => "Self-healing MediaInfo persistence for .strm files.";
+    // 插件描述
+    public string Description => "Persistent MediaInfo for .strm files with self-healing.";
 
-    // IPlugin.Id 要求返回 Guid 类型
-    // 使用一个固定的 Guid，确保插件的唯一性
-    public Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D"); // 替换为你自己的唯一 Guid
+    // 插件版本
+    public Version Version { get; } = new Version(1, 0, 0, 0);
 
-    // IPlugin.Version 要求返回 System.Version 类型
-    public Version Version => new Version(1, 0, 0, 0);
+    // 插件程序集文件路径 (由 Emby 自动设置)
+    public string AssemblyFilePath { get; set; } = string.Empty;
 
-    // IPlugin.AssemblyFilePath 需要外部注入或在运行时获取
-    public string AssemblyFilePath { get; private set; } = string.Empty;
+    // 插件数据文件夹路径 (由 Emby 自动设置)
+    public string DataFolderPath { get; set; } = string.Empty;
 
-    // IPlugin.DataFolderPath 需要外部注入或在运行时获取
-    public string DataFolderPath { get; private set; } = string.Empty;
-
-    // --- IPlugin 接口必须实现的方法 ---
-
-    // IPlugin.GetPluginInfo() 用于提供插件信息
+    /// <summary>
+    /// 获取插件信息 (可选实现，通常由框架处理)
+    /// </summary>
+    /// <returns>PluginInfo 实例</returns>
     public PluginInfo GetPluginInfo()
     {
+        // 框架通常会基于属性自动生成 PluginInfo
         return new PluginInfo
         {
-            Name = this.Name,
-            Description = this.Description,
-            // PluginInfo.Id 需要是 string 类型，所以将 Guid 转换为字符串
-            Id = this.Id.ToString(), // 关键修改：将 Guid 转换为 string
-            Version = this.Version.ToString()
+            Name = Name,
+            Version = Version.ToString(),
+            Id = Id.ToString() // 虽然 Id 是 Guid，但 PluginInfo.Id 通常是字符串
         };
     }
 
-    // IPlugin.OnUninstalling() 在插件卸载前调用
-    public void OnUninstalling()
-    {
-        // 在第一步中，我们暂时不执行任何操作
-        // 后续步骤可能需要在此处执行清理逻辑
-    }
-
-    // --- 插件生命周期方法 (非 IPlugin 接口成员，但常用) ---
-
-    // 可选：用于插件内部访问自身实例
-    public static Plugin Instance { get; private set; } = null!;
-
-    // 可选：插件配置（在后续步骤中会用到）
-    // public PluginConfiguration Configuration { get; private set; } = new();
-
     /// <summary>
-    /// 当 Emby 应用程序启动时调用。
+    /// 在应用程序启动时调用 (插件加载时)
     /// </summary>
     public void OnApplicationStartup()
     {
-        // 在第一步中，我们暂时不执行任何操作
-        // 后续步骤将在此处初始化服务、注册事件监听器等
-        Instance = this; // 设置静态实例以便其他部分访问
-
-        // 获取 AssemblyFilePath 和 DataFolderPath (通常由 Emby 在加载时设置)
-        // 这里使用 Assembly 信息作为示例，实际路径由 Emby 框架提供
-        var assembly = Assembly.GetExecutingAssembly();
-        AssemblyFilePath = assembly.Location;
-        // DataFolderPath 通常由 Emby 通过依赖注入等方式设置，这里暂时留空或设为默认值
-        // 实际上，Emby 会自动设置这些路径，我们只需要实现接口
+        // 暂时留空，后续在此初始化服务、订阅事件等
+        // 例如：Console.WriteLine("EverMedia Plugin Loaded!");
     }
 
     /// <summary>
-    /// 当 Emby 应用程序关闭时调用。
+    /// 在应用程序关闭时调用 (插件卸载时)
     /// </summary>
     public void OnApplicationShutdown()
     {
-        // 在第一步中，我们暂时不执行任何操作
-        // 后续步骤可能需要在此处清理资源或取消事件订阅
+        // 暂时留空，后续在此清理资源、取消订阅事件等
+    }
+
+    /// <summary>
+    /// 在插件即将卸载时调用
+    /// </summary>
+    public void OnUninstalling()
+    {
+        // 暂时留空，后续可在此执行卸载前的清理工作
     }
 }
