@@ -2,6 +2,7 @@
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using System.Reflection;
+using EverMedia.Configuration;
 
 namespace EverMedia;
 
@@ -57,8 +58,9 @@ public class Plugin : IPlugin // 实现 IPlugin 接口
     // 可选：用于插件内部访问自身实例
     public static Plugin Instance { get; private set; } = null!;
 
-    // 可选：插件配置（在后续步骤中会用到）
-    // public PluginConfiguration Configuration { get; private set; } = new();
+    // 添加 Configuration 属性
+    // Emby 框架会自动处理此属性的加载和保存
+    public PluginConfiguration Configuration { get; private set; } = new(); // 初始化为默认值
 
     /// <summary>
     /// 当 Emby 应用程序启动时调用。
