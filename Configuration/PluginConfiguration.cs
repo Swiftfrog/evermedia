@@ -1,28 +1,41 @@
 // Configuration/PluginConfiguration.cs
-using MediaBrowser.Model.Plugins; // 引入 Plugins 相关模型，需要 BasePluginConfiguration
+using MediaBrowser.Model.Plugins;
+using System.ComponentModel;
 
 namespace EverMedia.Configuration; // 使用命名空间组织代码
 
-/// <summary>
-/// 定义 EverMedia 插件的用户可配置选项。
-/// </summary>
-public class PluginConfiguration : BasePluginConfiguration // 继承基类
+// 继承自 BasePluginConfiguration
+public class PluginConfiguration : BasePluginConfiguration
 {
-    // 定义一个配置项：备份模式
-    public string BackupMode { get; set; } = "SideBySide"; // 默认值为 "SideBySide"
+    // 重写页面标题
+    public override string EditorTitle => "我的插件选项";
 
-    // 定义一个配置项：中心化备份路径（当 BackupMode 为 Centralized 时使用）
-    public string CentralizedRootPath { get; set; } = ""; // 默认为空字符串
+    // 重写页面描述，支持换行符 \n
+    public override string EditorDescription => "这是一个描述文本，显示在选项页面的顶部。\n下面的选项是创建 UI 元素的示例。";
 
-    // 定义一个配置项：是否启用自愈功能
-    public bool EnableSelfHealing { get; set; } = true; // 默认启用
+    public string TargetFolder { get; set; }
 
-    // 定义一个配置项：计划任务的最大并发数
-    public int MaxConcurrency { get; set; } = 4; // 默认值为 4
+    public bool IsDebugModeEnabled { get; set; }
 
-    // 定义一个配置项：是否启用孤立备份文件清理
-    public bool EnableOrphanCleanup { get; set; } = false; // 默认禁用
+    public enum MessageFormat
+    {
+        PlainText,
+        Json,
+        Xml
+    }
 
-    // 定义一个配置项：日志级别
-    public string LogLevel { get; set; } = "Info"; // 默认为 "Info"
+    public MessageFormat OutputFormat { get; set; }
+
+    public int ProcessingThreadCount { get; set; }
+
+    public PluginConfiguration()
+    {
+        // 在构造函数中为属性设置默认值
+        TargetFolder = "/path/to/default/folder";
+        IsDebugModeEnabled = false;
+        OutputFormat = MessageFormat.Json;
+        ProcessingThreadCount = 4;
+    }
 }
+
+
