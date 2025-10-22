@@ -1,0 +1,39 @@
+name: Build evermedia Plugin
+
+on:
+  push:
+    branches: [ main, p* ]
+  pull_request:
+    branches: [ main, p* ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build the project
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Create Artifacts Directory
+      run: mkdir -p ./artifacts/plugins
+
+    - name: Copy DLL to Artifacts
+      run: cp ./bin/Release/evermedia.dll ./artifacts/plugins/
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: evermedia-plugin
+        path: ./artifacts/

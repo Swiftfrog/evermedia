@@ -1,39 +1,34 @@
-name: Build evermedia Plugin
+name: Build EverMedia Plugin
 
 on:
   push:
-    branches: [ main, p* ]
+    branches: [ "main", "s*" ] # 或者你主要使用的分支名称
   pull_request:
-    branches: [ main, p* ]
-  workflow_dispatch:
+    branches: [ "main" , "s*" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 8.0.x # 确保与项目目标框架一致
 
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build the project
+    - name: Build
       run: dotnet build --no-restore --configuration Release
 
-    - name: Create Artifacts Directory
-      run: mkdir -p ./artifacts/plugins
-
-    - name: Copy DLL to Artifacts
-      run: cp ./bin/Release/evermedia.dll ./artifacts/plugins/
+    - name: Publish (Optional - to create artifact)
+      run: dotnet publish --no-build --configuration Release --output ./publish
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: evermedia-plugin
-        path: ./artifacts/
+        name: EverMedia-Plugin
+        path: ./publish/ # 或者是 bin/Release/net8.0/publish/ 如果不使用 publish 命令
