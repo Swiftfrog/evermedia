@@ -1,6 +1,8 @@
 // Services/MediaInfoService.cs
+using MediaBrowser.Controller.Entities;     // BaseItem
 using MediaBrowser.Controller.Library;      // ILibraryManager
 using MediaBrowser.Controller.Persistence;  // IItemRepository
+using MediaBrowser.Controller.Plugins;      // ConfigurationPageType PluginConfiguration
 using MediaBrowser.Controller.Providers;    // IProviderManager
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;                // IFileSystem
