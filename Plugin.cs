@@ -9,9 +9,9 @@ namespace EverMedia;
 
 /// <summary>
 /// EverMedia 插件的主入口点。
-/// 实现 IPlugin 接口以与 Emby Server 集成。
+/// 实现 IPlugin<PluginConfiguration> 接口以与 Emby Server 集成，并支持配置。
 /// </summary>
-public class Plugin : IPlugin
+public class Plugin : IPlugin<PluginConfiguration> // ✅ 关键修改：从 IPlugin 改为 IPlugin<PluginConfiguration>
 {
     // --- IPlugin 接口必须实现的属性 ---
     public string Name => "EverMedia";
@@ -38,12 +38,14 @@ public class Plugin : IPlugin
         // 在第一步中，我们暂时不执行任何操作
     }
 
+    // --- IPlugin<TConfiguration> 接口必须实现的属性 ---
+    // 这个属性现在由 IPlugin<PluginConfiguration> 接口定义，我们需要提供它
+    // 注意：这里不再需要我们自己声明一个 Configuration 属性
+    // Emby 会通过这个接口自动管理配置实例
+    public PluginConfiguration Configuration { get; set; } = new(); // 初始化为默认值
+
     // --- 插件生命周期方法与配置 ---
     public static Plugin Instance { get; private set; } = null!;
-
-    // 添加 Configuration 属性
-    // Emby 框架会自动处理此属性的加载和保存
-    public PluginConfiguration Configuration { get; private set; } = new(); // 初始化为默认值
 
     /// <summary>
     /// 当 Emby 应用程序启动时调用。
@@ -53,9 +55,6 @@ public class Plugin : IPlugin
         Instance = this; // 设置静态实例以便其他部分访问
 
         // 在这里，Configuration 属性已经由 Emby 自动加载了
-        // 如果 config/Plugin/7B921178-7C5B-42D6-BB7C-42E8B00C2C7D.xml 文件存在，Configuration 里的值就是文件里的值
-        // 如果不存在，Configuration 里的值就是我们在 PluginConfiguration.cs 中设置的默认值
-
         var assembly = Assembly.GetExecutingAssembly();
         AssemblyFilePath = assembly.Location;
     }
