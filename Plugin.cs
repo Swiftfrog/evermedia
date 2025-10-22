@@ -19,7 +19,7 @@ public class Plugin : IPlugin
 
     // IPlugin.Id 要求返回 Guid 类型
     // 使用一个固定的 Guid，确保插件的唯一性
-    public Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D"); // 替换为你自己的唯一 Guid
+    public String Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D"); // 替换为你自己的唯一 Guid
 
     // IPlugin.Version 要求返回 System.Version 类型
     public Version Version => new Version(1, 0, 0, 0);
