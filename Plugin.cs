@@ -1,4 +1,4 @@
-// 必须添加此命名空间引用
+// Plugin.cs
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using System.Reflection;
@@ -9,7 +9,7 @@ namespace EverMedia;
 /// EverMedia 插件的主入口点。
 /// 实现 IPlugin 接口以与 Emby Server 集成。
 /// </summary>
-public class Plugin : IPlugin
+public class Plugin : IPlugin // 实现 IPlugin 接口
 {
     // --- IPlugin 接口必须实现的属性 ---
 
@@ -19,7 +19,7 @@ public class Plugin : IPlugin
 
     // IPlugin.Id 要求返回 Guid 类型
     // 使用一个固定的 Guid，确保插件的唯一性
-    public Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D"); // 替换为你自己的唯一 Guid
+    public Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D"); // 请替换为你自己的唯一 Guid
 
     // IPlugin.Version 要求返回 System.Version 类型
     public Version Version => new Version(1, 0, 0, 0);
