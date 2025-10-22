@@ -1,4 +1,5 @@
 // Plugin.cs
+using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization; // 引入 IXmlSerializer
