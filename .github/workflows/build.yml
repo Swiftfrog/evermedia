@@ -33,4 +33,5 @@ jobs:
       with:
         name: EverMedia-Plugin
         # 这个路径现在是完全正确的，它会从 build 命令的输出中找到 DLL。
-        path: ./bin/Release/netstandard2.0/EverMedia.dll
+        # path: ./bin/Release/netstandard2.0/EverMedia.dll
+        path: ./bin/Release/net8.0/EverMedia.dll
