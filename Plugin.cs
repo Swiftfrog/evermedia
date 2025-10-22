@@ -1,6 +1,6 @@
 // Plugin.cs
-using MediaBrowser.Controller;
-using MediaBrowser.Controller.Plugins; // 包含 IServerApplicationHost 和 BasePluginSimpleUI
+using MediaBrowser.Controller; // IServerApplicationHost
+using MediaBrowser.Controller.Plugins; // BasePluginSimpleUI
 using MediaBrowser.Common.Plugins; // 包含 IPlugin 相关接口
 using System;
 using EverMedia.Configuration;
@@ -25,6 +25,7 @@ public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 Base
 
     // BasePluginSimpleUI 已处理 Configuration、GetPluginInfo、OnUninstalling 等
     // 以及 UI 生成所需的信息。
+
 
     // OnApplicationStartup 和 OnApplicationShutdown 通常在这里定义
     // 用于插件初始化和清理，但也可以留空或根据需要实现。
