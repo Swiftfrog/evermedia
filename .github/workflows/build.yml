@@ -32,4 +32,4 @@ jobs:
       with:
         name: EverMedia-Plugin
         # path: ./bin/Release/net8.0/EverMedia.dll # 指向生成的 DLL
-        path:./bin/Release/netstandard2.0/EverMedia.dll
+        path: ./bin/Release/netstandard2.0/EverMedia.dll
