@@ -13,6 +13,10 @@ public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 Base
     public override string Description => "Self-healing MediaInfo persistence for .strm files.";
     public override Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D");
 
+    // ✅ 关键修订: 添加一个公共属性来安全地暴露配置。
+    // 这个属性可以从插件内部调用受保护的 GetOptions() 方法。
+    public PluginConfiguration Configuration => GetOptions();
+
     // ✅ 构造函数使用 IServerApplicationHost
     public Plugin(IServerApplicationHost applicationHost)
         : base(applicationHost) // 将 applicationHost 传递给基类

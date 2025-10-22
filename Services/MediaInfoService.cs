@@ -109,7 +109,8 @@ public class MediaInfoService
     {
         // ✅ 通过 IServerApplicationHost 获取插件实例，然后获取配置
         var plugin = _applicationHost.Plugins.OfType<Plugin>().FirstOrDefault();
-        return plugin?.GetOptions(); // // ✅ 修订 1: 调用 GetOptions() 方法，而不是访问 Configuration 属性。
+        return plugin?.Configuration;
+        //return plugin?.GetOptions(); // // ✅ 修订 1: 调用 GetOptions() 方法，而不是访问 Configuration 属性。
     }
 
     // --- 辅助方法：生成 .medinfo 文件路径 ---
