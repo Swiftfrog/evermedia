@@ -31,4 +31,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: EverMedia-Plugin
-        path: ./publish/ # 或者是 bin/Release/net8.0/publish/ 如果不使用 publish 命令
+        path: ./bin/Release/net8.0/EverMedia.dll # 指向生成的 DLL
