@@ -1,8 +1,9 @@
+#build.yml
 name: Build EverMedia Plugin
 
 on:
   push:
-    branches: [ "main", "s*" ] # 或者你主要使用的分支名称
+    branches: [ "main", "s*" ]
   pull_request:
     branches: [ "main" , "s*" ]
 
@@ -13,10 +14,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup .NET
+    - name: Setup.NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x # 确保与项目目标框架一致
+        dotnet-version: 8.0.x
 
     - name: Restore dependencies
       run: dotnet restore
@@ -24,12 +25,12 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release
 
-    - name: Publish (Optional - to create artifact)
-      run: dotnet publish --no-build --configuration Release --output ./publish
+    # ✅ 修正: 移除了不必要的 "Publish" 步骤。
+    # "dotnet build" 已经生成了我们需要的 DLL 文件。
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: EverMedia-Plugin
-        # path: ./bin/Release/net8.0/EverMedia.dll # 指向生成的 DLL
-        path: ./bin/Release/netstandard2.0/EverMedia.dll
+        # 这个路径现在是完全正确的，它会从 build 命令的输出中找到 DLL。
+        path:./bin/Release/netstandard2.0/EverMedia.dll
