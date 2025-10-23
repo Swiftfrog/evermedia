@@ -6,6 +6,7 @@ using MediaBrowser.Controller.Persistence;  // IItemRepository
 using MediaBrowser.Controller.Providers;    // IProviderManager
 using MediaBrowser.Controller.MediaSourceManagement; // IMediaSourceManager
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Dto;               // MediaSourceInfo
 using MediaBrowser.Model.IO;                // IFileSystem
 using MediaBrowser.Model.Logging;           // ILogger, ILogManager
 using MediaBrowser.Model.MediaInfo;
