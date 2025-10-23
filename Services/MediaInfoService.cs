@@ -4,7 +4,6 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;      // ILibraryManager IMediaSourceManager
 using MediaBrowser.Controller.Persistence;  // IItemRepository
 using MediaBrowser.Controller.Providers;    // IProviderManager
-// using MediaBrowser.Controller.MediaSourceManagement; // IMediaSourceManager
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Dto;               // MediaSourceInfo
 using MediaBrowser.Model.IO;                // IFileSystem
@@ -107,6 +106,14 @@ public class MediaInfoService
             // 2. 获取章节信息 (如果 fillChapters 在 GetStaticMediaSources 中设为 true，章节信息已在 mediaSources 中)
             // 但我们也可以单独从 _itemRepository 获取
             var chapters = _itemRepository.GetChapters(item);
+
+            // ✅ 修正：检查 GetChapters 是否返回 null
+            if (chapters == null)
+            {
+                 _logger.Warn($"[MediaInfoService] GetChapters returned null for item: {item.Path ?? item.Name}. Using empty list.");
+                 // 将 chapters 设置为空列表，以便后续代码可以安全地使用 .ToList()
+                 chapters = new List<ChapterInfo>();
+            }
 
             // 3. 创建 MediaSourceWithChapters 对象列表
             var mediaSourcesWithChapters = mediaSources.Select(ms => new MediaSourceWithChapters
