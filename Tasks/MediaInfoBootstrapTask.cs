@@ -2,11 +2,12 @@
 using MediaBrowser.Controller.Library; // ILibraryManager
 using MediaBrowser.Controller.Providers; // IProviderManager
 using MediaBrowser.Model.Logging; // ILogger
-using MediaBrowser.Model.Tasks; // IScheduledTask
+using MediaBrowser.Model.Tasks; // IScheduledTask, TaskTriggerInfo
 using System; // For Guid
 using System.Collections.Generic; // For IEnumerable
 using System.Threading; // For CancellationToken
 using System.Threading.Tasks; // For Task
+
 using EverMedia.Services; // 引入 MediaInfoService
 
 namespace EverMedia.Tasks; // 使用命名空间组织代码
@@ -46,6 +47,22 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     public string Description => "Scan and persist MediaInfo for .strm files."; // 任务描述
 
     public string Category => "Library"; // 任务所属类别
+
+    // --- 获取默认触发器 ---
+    // 返回一个 TaskTriggerInfo 对象的集合，定义任务的默认运行计划。
+    // 如果返回空集合或 null，则任务默认不会自动运行，只能手动触发。
+    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
+    {
+        // 示例：如果希望任务每天凌晨 2 点运行，可以这样配置：
+        // yield return new TaskTriggerInfo
+        // {
+        //     Type = TaskTriggerInfo.TriggerDaily,
+        //     TimeOfDayTicks = TimeSpan.FromHours(2).Ticks // 2 AM
+        // };
+
+        // 当前设置：无默认触发器，任务仅可手动运行。
+        return Array.Empty<TaskTriggerInfo>(); // 返回空集合
+    }
 
     // --- 核心执行方法 ---
     // ✅ 修正 1: 方法名从 ExecuteAsync 改为 Execute
