@@ -27,13 +27,11 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     // --- 构造函数：接收依赖项 ---
     public MediaInfoBootstrapTask(
         ILogManager logManager,           // 请求日志管理器工厂
-        // ILogger logger,                   // 用于记录任务执行日志
         ILibraryManager libraryManager,   // 用于查询媒体库项目
         IProviderManager providerManager, // 用于触发元数据刷新（探测）
         MediaInfoService mediaInfoService // 用于执行备份和恢复逻辑
     )
     {
-        // _logger = logger;
         // ✅ 使用 logManager 为这个特定的类创建一个 logger 实例
         _logger = logManager.GetLogger(GetType().Name);
         _libraryManager = libraryManager;
