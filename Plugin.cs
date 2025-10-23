@@ -27,20 +27,4 @@ public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 Base
     // ✅ 静态实例
     public static Plugin Instance { get; private set; } = null!; // 初始化为 null! 以避免未赋值警告
 
-    // BasePluginSimpleUI 已处理 Configuration、GetPluginInfo、OnUninstalling 等
-    // 以及 UI 生成所需的信息。
-
-
-    // OnApplicationStartup 和 OnApplicationShutdown 通常在这里定义
-    // 用于插件初始化和清理，但也可以留空或根据需要实现。
-    public void OnApplicationStartup()
-    {
-        // 在这里进行插件启动时的初始化工作
-        // Configuration 已由基类加载
-    }
-
-    public void OnApplicationShutdown()
-    {
-        // 在这里进行插件关闭时的清理工作
-    }
 }
