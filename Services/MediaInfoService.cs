@@ -141,35 +141,22 @@ public class MediaInfoService
                 _fileSystem.CreateDirectory(parentDir);
             }
 
-            // 7. 添加版本信息到 DTO (可选，但推荐)
-            // 我们可以在 MediaSourceWithChapters 类中添加版本字段，或者在序列化前处理
-            // 为了简单，我们直接在序列化的第一个对象中添加
-            if (mediaSourcesWithChapters.Any())
-            {
-                 var firstSource = mediaSourcesWithChapters[0];
-                 // 注意：MediaSourceWithChapters 类本身可能需要添加 EmbyVersion 和 PluginVersion 字段
-                 // 但为了不修改现有类结构，我们可以创建一个包含版本信息的包装对象
-                 // 或者直接在第一个对象上设置（如果类支持）
-                 // 这里我们假设 MediaSourceWithChapters 有这些字段，或者我们序列化一个包含列表和版本的对象
-                 // 为了简化，我们先假设类本身有这些字段，或者忽略版本写入（在恢复时检查会更复杂）
-                 // 或者我们创建一个临时对象来序列化
-                 var backupData = new
-                 {
-                     EmbyVersion = _applicationHost.ApplicationVersion.ToString(),
-                     PluginVersion = Plugin.Instance.Version.ToString(),
-                     Data = mediaSourcesWithChapters // 包含净化后的数据
-                 };
 
-                 // 8. 序列化到 .medinfo 文件
-                 await _jsonSerializer.SerializeToFileAsync(backupData, medInfoPath);
-                 _logger.Info($"[MediaInfoService] Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
-                 return true;
-            }
-            else
+            // 7. 添加版本信息到 DTO
+            var backupData = new
             {
-                 _logger.Warn($"[MediaInfoService] No MediaSourceWithChapters data to serialize for item: {item.Path ?? item.Name}.");
-                 return false;
-            }
+                EmbyVersion = _applicationHost.ApplicationVersion.ToString(),
+                PluginVersion = Plugin.Instance.Version.ToString(),
+                Data = mediaSourcesWithChapters
+            };
+
+            // 8. 序列化到 .medinfo 文件 (修正：使用 SerializeToFile 并包装在 Task.Run 中)
+            // IJsonSerializer 没有 SerializeToFileAsync，所以使用同步方法并用 Task.Run 避免阻塞
+            await Task.Run(() => _jsonSerializer.SerializeToFile(backupData, medInfoPath));
+
+            _logger.Info($"[MediaInfoService] Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
+            return true;
+
 
         }
         catch (Exception ex)
