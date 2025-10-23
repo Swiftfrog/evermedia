@@ -1,10 +1,10 @@
 // Services/MediaInfoService.cs
 using MediaBrowser.Controller;              // IServerApplicationHost
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Library;      // ILibraryManager
+using MediaBrowser.Controller.Library;      // ILibraryManager IMediaSourceManager
 using MediaBrowser.Controller.Persistence;  // IItemRepository
 using MediaBrowser.Controller.Providers;    // IProviderManager
-using MediaBrowser.Controller.MediaSourceManagement; // IMediaSourceManager
+// using MediaBrowser.Controller.MediaSourceManagement; // IMediaSourceManager
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Dto;               // MediaSourceInfo
 using MediaBrowser.Model.IO;                // IFileSystem
