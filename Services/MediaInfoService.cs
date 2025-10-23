@@ -107,6 +107,7 @@ public class MediaInfoService
             // 但我们也可以单独从 _itemRepository 获取
             var chapters = _itemRepository.GetChapters(item);
 
+            ChapterInfo[]? chaptersArray = _itemRepository.GetChapters(item); 
             List<ChapterInfo> chaptersList = (chaptersArray ?? Array.Empty<ChapterInfo>()).ToList();
 
             // 3. 创建 MediaSourceWithChapters 对象列表
