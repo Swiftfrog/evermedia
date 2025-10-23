@@ -2,6 +2,7 @@
 using MediaBrowser.Controller; // IServerApplicationHost
 using MediaBrowser.Controller.Plugins; // BasePluginSimpleUI
 using MediaBrowser.Common.Plugins; // 包含 IPlugin 相关接口
+using MediaBrowser.Model.Tasks; // IScheduledTask
 using System;
 using System.Collections.Generic; // For IEnumerable
 using EverMedia.Configuration;
