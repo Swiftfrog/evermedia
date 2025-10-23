@@ -30,12 +30,4 @@ public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 Base
     // ✅ 静态实例
     public static Plugin Instance { get; private set; } = null!; // 初始化为 null! 以避免未赋值警告
 
-    // --- 新增：实现 IPlugin.GetTasks 以注册计划任务 ---
-    public IEnumerable<IScheduledTask> GetTasks() // 返回插件提供的计划任务列表
-    {
-        // 返回一个包含 MediaInfoBootstrapTask 实例的集合
-        // Emby 框架会自动发现并注册这些任务
-        yield return new MediaInfoBootstrapTask(); // 这里需要无参构造函数或依赖注入
-    }
-
 }
