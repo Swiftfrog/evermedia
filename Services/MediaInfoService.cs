@@ -247,7 +247,8 @@ public class MediaInfoService
             // 尝试将其视为我们备份时写入的结构: { EmbyVersion, PluginVersion, Data: [MediaSourceWithChapters...] }
             // 需要动态处理或创建一个临时的 DTO 来接收
             // 为了类型安全，我们创建一个临时的 DTO 来反序列化
-            var backupDto = new { EmbyVersion = "", PluginVersion = "", Data = Array.Empty<MediaSourceWithChapters>() };
+            // var backupDto = new { EmbyVersion = "", PluginVersion = "", Data = Array.Empty<MediaSourceWithChapters>() };
+            BackupDto? backupDto = null;
             try
             {
                 backupDto = _jsonSerializer.DeserializeFromFile<BackupDto>(medInfoPath);
@@ -255,14 +256,16 @@ public class MediaInfoService
             catch (Exception ex)
             {
                  _logger.Error($"[EverMedia:MediaInfoService] Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
+                 _logger.Debug(ex.StackTrace); // 记录详细堆栈
                  return false;
             }
 
-            if (backupDto.Data == null || !backupDto.Data.Any())
+            if (backupDto == null || backupDto.Data == null || !backupDto.Data.Any())
             {
                 _logger.Warn($"[EverMedia:MediaInfoService] No data found in medinfo file {medInfoPath}.");
                 return false;
             }
+
 
             // 3. 版本检查 (可选)
             _logger.Debug($"[EverMedia:MediaInfoService] Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
@@ -290,9 +293,9 @@ public class MediaInfoService
 
             // 更新视频流属性 (如果存在)
             var videoStream = mediaSourceInfo.MediaStreams
-                .Where(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue)
-                .OrderByDescending(s => (long)s.Width.Value * s.Height.Value)
-                .FirstOrDefault();
+                ?.Where(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue)
+                ?.OrderByDescending(s => (long)s.Width.Value * s.Height.Value)
+                ?.FirstOrDefault();
 
             if (videoStream != null)
             {
@@ -303,7 +306,9 @@ public class MediaInfoService
             // 5b. 恢复媒体流 (使用 IItemRepository)
             // 注意：MediaStreams 需要与 item.Id 关联
             // GetStaticMediaSources 返回的 MediaSourceInfo.MediaStreams 可能需要调整 Id
-            var streamsToSave = mediaSourceInfo.MediaStreams.ToList();
+
+            // ✅ 修正 2: 使用 item.InternalId (long) 而不是 item.Id (Guid)
+            var streamsToSave = mediaSourceInfo.MediaStreams?.ToList() ?? new List<MediaStream>();
             // 确保流的 Id 与 item.Id 关联 (通常在 SaveMediaStreams 时由框架处理，但检查一下)
             // MediaStream 对象本身通常不需要手动设置 ItemId，SaveMediaStreams 会处理
             // 但 Path 字段，对于外挂字幕，需要在恢复时重建完整路径
@@ -315,7 +320,19 @@ public class MediaInfoService
 
             // 调用 SaveMediaStreams
             _logger.Debug($"[EverMedia:MediaInfoService] Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
-            _itemRepository.SaveMediaStreams(item.Id, streamsToSave, CancellationToken.None); // 注意：CancellationToken.None
+            // ✅ 修正 2: 使用 item.InternalId
+            _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None); // 注意：CancellationToken.None
+
+            // 5c. 恢复章节 (使用 IItemRepository)
+            // ✅ 修正 2: 使用 item.InternalId (long) 而不是 item.Id (Guid)
+            // 需要重建章节图片路径（如果之前保存了图片）
+            // foreach (var chapter in chaptersToRestore.Where(c => !string.IsNullOrEmpty(c.ImagePath)))
+            // {
+            //     chapter.ImagePath = Path.Combine(item.ContainingFolderPath, Path.GetFileName(chapter.ImagePath));
+            // }
+            // 但 StrmAssistant 似乎没有持久化图片路径，而是图片标签 (ImageTag)，并且在恢复时清空了它。
+            // 我们遵循 StrmAssistant 的模式，清空 ImageTag。
+
 
             // 5c. 恢复章节 (使用 IItemRepository)
             // 需要重建章节图片路径（如果之前保存了图片）
@@ -331,14 +348,13 @@ public class MediaInfoService
             }
 
             _logger.Debug($"[EverMedia:MediaInfoService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
-            _itemRepository.SaveChapters(item.Id, true, chaptersToRestore); // 注意：使用带 saveImages 参数的重载
+            _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
 
             // 5d. 更新项目并通知 (使用 ILibraryManager)
             _logger.Debug($"[EverMedia:MediaInfoService] Updating item in library for: {item.Path ?? item.Name}");
             // 使用 UpdateItems 或 UpdateItem
             // 推荐使用 UpdateItems 以明确指定更新原因
-            _libraryManager.UpdateItems(new List<BaseItem> { item }, item.Parent, ItemUpdateType.MetadataImport, CancellationToken.None);
-
+            _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
             _logger.Info($"[EverMedia:MediaInfoService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
             return true;
         }
