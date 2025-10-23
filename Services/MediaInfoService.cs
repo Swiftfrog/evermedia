@@ -36,7 +36,8 @@ public class MediaInfoService
 
     // --- 构造函数：接收 Emby 框架注入的依赖项 ---
     public MediaInfoService(
-        ILogger logger,                   // 用于记录日志
+        //ILogger logger,                   // 用于记录日志
+        ILogManager logManager,           // 请求日志管理器工厂
         ILibraryManager libraryManager,   // 用于管理媒体库项目
         IItemRepository itemRepository,   // 用于直接操作数据库中的项目数据（如保存媒体流）
         IProviderManager providerManager, // 用于触发元数据刷新等
@@ -46,7 +47,8 @@ public class MediaInfoService
         IServerApplicationHost applicationHost
     )
     {
-        _logger = logger;
+        // _logger = logger;
+        _logger = logManager.GetLogger(GetType().Name); //✅ 使用 logManager 为这个服务类创建一个 logger 实例
         _libraryManager = libraryManager;
         _itemRepository = itemRepository;
         _providerManager = providerManager;
