@@ -1,8 +1,8 @@
 // ServerEntryPoint.cs
 using MediaBrowser.Controller.Library; // ILibraryManager
-using MediaBrowser.Controller.Plugins; // IPlugin
+using MediaBrowser.Controller.Plugins; // IServerEntryPoint
 using MediaBrowser.Model.Logging; // ILogger
-using System;
+using System.Threading.Tasks; // For async/await
 using EverMedia.Events; // 引入事件监听器
 
 namespace EverMedia;
@@ -11,7 +11,7 @@ namespace EverMedia;
 /// 插件的服务器端入口点。
 /// 负责在 Emby 启动时订阅事件，在关闭时取消订阅。
 /// </summary>
-public class ServerEntryPoint : IApplicationEntryPoint // 使用 IApplicationEntryPoint 是常见的做法
+public class ServerEntryPoint : IServerEntryPoint // ✅ 使用 IServerEntryPoint
 {
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger _logger;
@@ -30,21 +30,22 @@ public class ServerEntryPoint : IApplicationEntryPoint // 使用 IApplicationEnt
     }
 
     /// <summary>
-    /// 当应用程序启动时调用。
+    /// 当服务器启动时调用。
     /// 订阅 ILibraryManager 的事件。
     /// </summary>
-    public void Run()
+    public async Task InitializeAsync() // ✅ 实现 IServerEntryPoint 的 InitializeAsync 方法
     {
         _libraryManager.ItemAdded += _eventListener.OnItemAdded;
         _libraryManager.ItemUpdated += _eventListener.OnItemUpdated;
         _logger.Info("[ServerEntryPoint] Event handlers subscribed.");
+        // await Task.CompletedTask; // 如果没有异步操作，可以返回 CompletedTask
     }
 
     /// <summary>
-    /// 当应用程序关闭时调用。
+    /// 当服务器关闭时调用。
     /// 取消订阅 ILibraryManager 的事件。
     /// </summary>
-    public void Dispose() // IApplicationEntryPoint 通常实现 IDisposable 用于清理
+    public void Dispose() // ✅ 实现 IServerEntryPoint 的 Dispose 方法
     {
         _libraryManager.ItemAdded -= _eventListener.OnItemAdded;
         _libraryManager.ItemUpdated -= _eventListener.OnItemUpdated;
