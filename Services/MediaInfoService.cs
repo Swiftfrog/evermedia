@@ -77,6 +77,14 @@ public class MediaInfoService
             // 1. 获取项目的 MediaSourceInfo (使用 _mediaSourceManager)
             // 需要获取 LibraryOptions
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
+
+            // ✅ 修正：检查 GetLibraryOptions 是否返回 null
+            if (libraryOptions == null)
+            {
+                _logger.Error($"[MediaInfoService] Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
+                return false; // 没有库选项，无法进行后续操作
+            }
+
             // 调用 GetStaticMediaSources (8 参数版本)
             // 参数: item, enableAlternateMediaSources, enablePathSubstitution, fillChapters, collectionFolders, libraryOptions, deviceProfile, user
             var mediaSources = _mediaSourceManager.GetStaticMediaSources(
