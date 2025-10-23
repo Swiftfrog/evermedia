@@ -117,7 +117,8 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
 
             // 3. 逻辑判断
             string medInfoPath = GetMedInfoPath(item); // 使用内部方法获取路径
-            bool hasMediaInfo = item.HasMediaStreams; // 检查项目是否有 MediaStreams
+            //bool hasMediaInfo = item.HasMediaStreams; // 检查项目是否有 MediaStreams
+            bool hasMediaInfo = item.MediaStreams?.Any() ?? false;
             bool medInfoExists = _fileSystem.FileExists(medInfoPath);
 
             if (!hasMediaInfo && medInfoExists)
