@@ -203,27 +203,161 @@ public class MediaInfoService
     // --- 核心方法：恢复 MediaInfo ---
     public async Task<bool> RestoreAsync(BaseItem item)
     {
-        _logger.Info($"[MediaInfoService] Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+        // ✅ 修正日志前缀为 "EverMedia" + 类名
+        _logger.Info($"[EverMedia:MediaInfoService] Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
 
-        // ✅ 在方法内部获取当前配置
         var config = GetConfiguration();
         if (config == null)
         {
-            _logger.Error("[MediaInfoService] Failed to get plugin configuration for RestoreAsync.");
-            return false; // 配置获取失败，返回 false
+            _logger.Error("[EverMedia:MediaInfoService] Failed to get plugin configuration for RestoreAsync.");
+            return false;
         }
 
-        // TODO: 实现恢复逻辑
-        // 1. 查找对应的 .medinfo 文件 (使用 config.BackupMode)
-        // 2. 反序列化 JSON
-        // 3. 更新 BaseItem 属性
-        // 4. 调用 _itemRepository.SaveMediaStreams
-        // 5. 调用 _libraryManager.UpdateItem
-        // 6. 记录成功或失败
+        try
+        {
+            // 1. 查找对应的 .medinfo 文件
+            string medInfoPath = GetMedInfoPath(item);
+            _logger.Debug($"[EverMedia:MediaInfoService] Looking for medinfo file: {medInfoPath}");
 
-        _logger.Info($"[MediaInfoService] RestoreAsync completed for item: {item.Path ?? item.Name}. Config used: BackupMode={config.BackupMode}. Result: Not Implemented Yet.");
-        return false; // 暂时返回 false
+            if (!_fileSystem.FileExists(medInfoPath))
+            {
+                _logger.Info($"[EverMedia:MediaInfoService] No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
+                return false; // 文件不存在，无法恢复
+            }
+
+            // 2. 读取并反序列化 JSON
+            // 首先反序列化为 object 以检查结构
+            object? backupDataObject = null;
+            try
+            {
+                backupDataObject = await _jsonSerializer.DeserializeFromFileAsync<object>(medInfoPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[EverMedia:MediaInfoService] Error deserializing medinfo file {medInfoPath}: {ex.Message}");
+                return false;
+            }
+
+            if (backupDataObject == null)
+            {
+                _logger.Warn($"[EverMedia:MediaInfoService] Deserialized medinfo file {medInfoPath} is null.");
+                return false;
+            }
+
+            // 尝试将其视为我们备份时写入的结构: { EmbyVersion, PluginVersion, Data: [MediaSourceWithChapters...] }
+            // 需要动态处理或创建一个临时的 DTO 来接收
+            // 为了类型安全，我们创建一个临时的 DTO 来反序列化
+            var backupDto = new { EmbyVersion = "", PluginVersion = "", Data = Array.Empty<MediaSourceWithChapters>() };
+            try
+            {
+                backupDto = _jsonSerializer.DeserializeFromFile<BackupDto>(medInfoPath);
+            }
+            catch (Exception ex)
+            {
+                 _logger.Error($"[EverMedia:MediaInfoService] Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
+                 return false;
+            }
+
+            if (backupDto.Data == null || !backupDto.Data.Any())
+            {
+                _logger.Warn($"[EverMedia:MediaInfoService] No data found in medinfo file {medInfoPath}.");
+                return false;
+            }
+
+            // 3. 版本检查 (可选)
+            _logger.Debug($"[EverMedia:MediaInfoService] Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
+            // TODO: 在这里可以添加版本兼容性检查逻辑
+
+            // 4. 选择要恢复的数据 (通常取第一个)
+            var sourceToRestore = backupDto.Data.First(); // 简单起见，恢复第一个 MediaSourceWithChapters
+            var mediaSourceInfo = sourceToRestore.MediaSourceInfo;
+            var chaptersToRestore = sourceToRestore.Chapters ?? new List<ChapterInfo>();
+
+            if (mediaSourceInfo == null)
+            {
+                _logger.Warn($"[EverMedia:MediaInfoService] MediaSourceInfo in medinfo file {medInfoPath} is null.");
+                return false;
+            }
+
+            // 5. 数据恢复
+            // 5a. 更新 BaseItem 属性
+            // 注意：需要获取可变的 BaseItem 实例（通常是传入的 item，但确保它是最新的）
+            // item 参数通常是可以直接修改的
+            item.Size = mediaSourceInfo.Size.GetValueOrDefault();
+            item.RunTimeTicks = mediaSourceInfo.RunTimeTicks;
+            item.Container = mediaSourceInfo.Container;
+            item.TotalBitrate = mediaSourceInfo.Bitrate.GetValueOrDefault();
+
+            // 更新视频流属性 (如果存在)
+            var videoStream = mediaSourceInfo.MediaStreams
+                .Where(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue)
+                .OrderByDescending(s => (long)s.Width.Value * s.Height.Value)
+                .FirstOrDefault();
+
+            if (videoStream != null)
+            {
+                item.Width = videoStream.Width.GetValueOrDefault();
+                item.Height = videoStream.Height.GetValueOrDefault();
+            }
+
+            // 5b. 恢复媒体流 (使用 IItemRepository)
+            // 注意：MediaStreams 需要与 item.Id 关联
+            // GetStaticMediaSources 返回的 MediaSourceInfo.MediaStreams 可能需要调整 Id
+            var streamsToSave = mediaSourceInfo.MediaStreams.ToList();
+            // 确保流的 Id 与 item.Id 关联 (通常在 SaveMediaStreams 时由框架处理，但检查一下)
+            // MediaStream 对象本身通常不需要手动设置 ItemId，SaveMediaStreams 会处理
+            // 但 Path 字段，对于外挂字幕，需要在恢复时重建完整路径
+            foreach (var stream in streamsToSave.Where(s => s.IsExternal && s.Type == MediaStreamType.Subtitle && s.Path != null))
+            {
+                // 重建完整路径：媒体文件所在目录 + 保存的相对文件名
+                stream.Path = Path.Combine(item.ContainingFolderPath, stream.Path);
+            }
+
+            // 调用 SaveMediaStreams
+            _logger.Debug($"[EverMedia:MediaInfoService] Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
+            _itemRepository.SaveMediaStreams(item.Id, streamsToSave, CancellationToken.None); // 注意：CancellationToken.None
+
+            // 5c. 恢复章节 (使用 IItemRepository)
+            // 需要重建章节图片路径（如果之前保存了图片）
+            // foreach (var chapter in chaptersToRestore.Where(c => !string.IsNullOrEmpty(c.ImagePath)))
+            // {
+            //     chapter.ImagePath = Path.Combine(item.ContainingFolderPath, Path.GetFileName(chapter.ImagePath));
+            // }
+            // 但 StrmAssistant 似乎没有持久化图片路径，而是图片标签 (ImageTag)，并且在恢复时清空了它。
+            // 我们遵循 StrmAssistant 的模式，清空 ImageTag。
+            foreach (var chapter in chaptersToRestore)
+            {
+                chapter.ImageTag = null; // 清空图片标签，避免上下文问题
+            }
+
+            _logger.Debug($"[EverMedia:MediaInfoService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
+            _itemRepository.SaveChapters(item.Id, true, chaptersToRestore); // 注意：使用带 saveImages 参数的重载
+
+            // 5d. 更新项目并通知 (使用 ILibraryManager)
+            _logger.Debug($"[EverMedia:MediaInfoService] Updating item in library for: {item.Path ?? item.Name}");
+            // 使用 UpdateItems 或 UpdateItem
+            // 推荐使用 UpdateItems 以明确指定更新原因
+            _libraryManager.UpdateItems(new List<BaseItem> { item }, item.Parent, ItemUpdateType.MetadataImport, CancellationToken.None);
+
+            _logger.Info($"[EverMedia:MediaInfoService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"[EverMedia:MediaInfoService] Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Debug(ex.StackTrace); // 记录详细堆栈
+            return false;
+        }
     }
+
+    // --- 内部类：用于反序列化备份文件的 DTO ---
+    private class BackupDto
+    {
+        public string? EmbyVersion { get; set; }
+        public string? PluginVersion { get; set; }
+        public MediaSourceWithChapters[] Data { get; set; } = Array.Empty<MediaSourceWithChapters>();
+    }
+
 
     // --- 辅助方法：获取插件配置 ---
     private PluginConfiguration? GetConfiguration()
