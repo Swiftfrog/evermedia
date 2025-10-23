@@ -28,7 +28,7 @@ public class MediaInfoEventListener
     }
 
     // --- 事件处理方法：处理 ItemAdded 事件 ---
-    public async void OnItemAdded(object sender, ItemChangeEventArgs e)
+    public async void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
         // 注意：ItemAdded 事件可能传递多种类型的 BaseItem
         // 我们只关心 .strm 文件
@@ -45,7 +45,7 @@ public class MediaInfoEventListener
     }
 
     // --- 事件处理方法：处理 ItemUpdated 事件 ---
-    public async void OnItemUpdated(object sender, ItemChangeEventArgs e)
+    public async void OnItemUpdated(object? sender, ItemChangeEventArgs e)
     {
         // 同样，只关心 .strm 文件
         if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
