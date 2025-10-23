@@ -48,7 +48,9 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     public string Category => "Library"; // 任务所属类别
 
     // --- 核心执行方法 ---
-    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+    // ✅ 修正 1: 方法名从 ExecuteAsync 改为 Execute
+    // ✅ 修正 2: 参数顺序从 (IProgress, CancellationToken) 改为 (CancellationToken, IProgress)
+    public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
     {
         _logger.Info("[MediaInfoBootstrapTask] Task execution started.");
 
@@ -62,7 +64,7 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             //    b. 如果没有，检查是否有 MediaStreams
             //       - 如果没有，触发探测 (调用 item.RefreshMetadata 或 providerManager.QueueRefresh)
             //         -> 探测成功后，ItemUpdated 事件会触发，由事件监听器处理备份
-            // 3. 使用 progress.Report 更新进度
+            // 3. 使用 progress.Report 更新进度 (注意参数顺序已变)
             // 4. 监听 cancellationToken.IsCancellationRequested
 
             _logger.Info("[MediaInfoBootstrapTask] Task execution completed (Not Implemented Yet).");
