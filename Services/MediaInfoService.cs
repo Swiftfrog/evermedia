@@ -293,9 +293,9 @@ public class MediaInfoService
 
             // 更新视频流属性 (如果存在)
             var videoStream = mediaSourceInfo.MediaStreams
-                ?.Where(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue)
-                ?.OrderByDescending(s => (long)s.Width.Value * s.Height.Value)
-                ?.FirstOrDefault();
+                .Where(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue)
+                .OrderByDescending(s => (long)s.Width!.Value * s.Height!.Value)
+                .FirstOrDefault();
 
             if (videoStream != null)
             {
