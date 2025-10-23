@@ -107,9 +107,7 @@ public class MediaInfoService
             // 但我们也可以单独从 _itemRepository 获取
             var chapters = _itemRepository.GetChapters(item);
 
-            // 检查 GetChapters 是否返回 null，使用空合并运算符提供默认空数组
-            // 这样无论 GetChapters 返回什么，chapters 都不会是 null
-            var chaptersList = (chapters ?? Array.Empty<ChapterInfo>()).ToList();
+            List<ChapterInfo> chaptersList = (chaptersArray ?? Array.Empty<ChapterInfo>()).ToList();
 
             // 3. 创建 MediaSourceWithChapters 对象列表
             var mediaSourcesWithChapters = mediaSources.Select(ms => new MediaSourceWithChapters
