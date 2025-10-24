@@ -5,16 +5,17 @@ using System.ComponentModel; // 可选，用于 DisplayName 和 Description
 
 namespace EverMedia.Configuration;
 
-public enum BackupMode { SideBySide, Centralized }
+//public enum BackupModeOption { SideBySide, Centralized }
 
 public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOptionsBase
 {
     // ✅ 实现 EditorTitle，作为 UI 上的主标题
     public override string EditorTitle => "EverMedia Settings";
 
+    public enum BackupModeOption { SideBySide, Centralized }
     [DisplayName("Backup Mode")]
     [Description("Choose how to store .medinfo files. SideBySide: Next to the .strm file. Centralized: In a single specified root folder.")]
-    public BackupMode BackupMode { get; set; } = BackupMode.SideBySide;
+    public BackupModeOption BackupMode { get; set; } = BackupMode.SideBySide;
 
     // public string BackupMode { get; set; } = "SideBySide";
     //public IList<BackupMode> RestrictedCodecList => new[] { BackupMode.SideBySide, BackupMode.Centralized };
