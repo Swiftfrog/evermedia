@@ -7,6 +7,8 @@ namespace EverMedia.Configuration;
 
 public enum BackupMode { SideBySide, Centralized }
 
+public enum LogLevel { Debug, Info, Warn, Error }
+
 public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOptionsBase
 {
     // ✅ 实现 EditorTitle，作为 UI 上的主标题
@@ -43,5 +45,7 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
 
     [DisplayName("Log Level")]
     [Description("Minimum level for logging messages from this plugin.")]
-    public string LogLevel { get; set; } = "Info";
+    //public string LogLevel { get; set; } = "Info";
+    public LogLevel LogLevel { get; set; } = LogLevel.Info;
+
 }

@@ -54,7 +54,7 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
     public string Description => "Scan and persist MediaInfo for .strm files."; // 任务描述
 
-    public string Category => "Library"; // 任务所属类别
+    public string Category => "EverMedia"; // 任务所属类别
 
     // --- 获取默认触发器 ---
     // 返回一个 TaskTriggerInfo 对象的集合，定义任务的默认运行计划。
