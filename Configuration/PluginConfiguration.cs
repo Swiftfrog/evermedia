@@ -12,12 +12,13 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
 
     // --- 配置项 ---
     // 可选：使用 DisplayName 和 Description 为 UI 提供更好的标签和提示
+    public IList<BackupMode> RestrictedCodecList => new[] { BackupMode.SideBySide, BackupMode.Centralized };
     [DisplayName("Backup Mode")]
     [Description("Choose how to store .medinfo files. SideBySide: Next to the .strm file. Centralized: In a single specified root folder.")]
     // public string BackupMode { get; set; } = "SideBySide";
-    public IList<BackupMode> RestrictedCodecList => new[] { SideBySide, Centralized };
+    //public IList<BackupMode> RestrictedCodecList => new[] { BackupMode.SideBySide, BackupMode.Centralized };
     [SelectItemsSource(nameof(RestrictedCodecList))]
-    public BackupMode RestrictedEnumSelect { get; set; }
+    public BackupMode RestrictedEnumSelect { get; set; } = BackupMode.SideBySide;
 
 
     [DisplayName("Centralized Root Path")]
