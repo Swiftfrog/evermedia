@@ -12,10 +12,10 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
     // ✅ 实现 EditorTitle，作为 UI 上的主标题
     public override string EditorTitle => "EverMedia Settings";
 
-    public enum BackupModeOption { SideBySide, Centralized }
+    public enum BackupMode { SideBySide, Centralized }
     [DisplayName("Backup Mode")]
     [Description("Choose how to store .medinfo files. SideBySide: Next to the .strm file. Centralized: In a single specified root folder.")]
-    public BackupModeOption BackupMode { get; set; } = BackupModeOption.SideBySide;
+    public BackupMode BackupModeOption { get; set; } = BackupMode.SideBySide;
 
     // public string BackupMode { get; set; } = "SideBySide";
     //public IList<BackupMode> RestrictedCodecList => new[] { BackupMode.SideBySide, BackupMode.Centralized };
