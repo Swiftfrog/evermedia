@@ -397,7 +397,7 @@ public class MediaInfoService
         }
 
         // 使用配置
-        if (config.BackupMode == "Centralized" && !string.IsNullOrEmpty(config.CentralizedRootPath))
+        if (config.BackupMode == BackupMode.Centralized && !string.IsNullOrEmpty(config.CentralizedRootPath))
         {
             // 如果是中心化模式且路径有效，则构建中心化路径
             // 注意：GetRelativePath 可能需要处理不同的根目录情况
