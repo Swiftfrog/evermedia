@@ -1,14 +1,18 @@
 // Tasks/MediaInfoBootstrapTask.cs
+using MediaBrowser.Controller.Entities; // BaseItem
 using MediaBrowser.Controller.Library; // ILibraryManager
 using MediaBrowser.Controller.Providers; // IProviderManager
+using MediaBrowser.Model.Entities; // LocationType
 using MediaBrowser.Model.Logging; // ILogger
 using MediaBrowser.Model.Tasks; // IScheduledTask, TaskTriggerInfo
 using System; // For Guid
 using System.Collections.Generic; // For IEnumerable
 using System.Threading; // For CancellationToken
 using System.Threading.Tasks; // For Task
-
 using EverMedia.Services; // 引入 MediaInfoService
+using EverMedia.Configuration; // 引入配置类
+using System.Linq; // For Where, Any
+using MediaBrowser.Model.IO; // For IFileSystem, DirectoryService
 
 namespace EverMedia.Tasks; // 使用命名空间组织代码
 
@@ -23,13 +27,15 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     private readonly ILibraryManager _libraryManager;
     private readonly IProviderManager _providerManager;
     private readonly MediaInfoService _mediaInfoService;
+    private readonly IFileSystem _fileSystem; // 注入 IFileSystem
 
     // --- 构造函数：接收依赖项 ---
     public MediaInfoBootstrapTask(
         ILogManager logManager,           // 请求日志管理器工厂
         ILibraryManager libraryManager,   // 用于查询媒体库项目
         IProviderManager providerManager, // 用于触发元数据刷新（探测）
-        MediaInfoService mediaInfoService // 用于执行备份和恢复逻辑
+        MediaInfoService mediaInfoService, // 用于执行备份和恢复逻辑
+        IFileSystem fileSystem           // 用于 MetadataRefreshOptions
     )
     {
         // ✅ 使用 logManager 为这个特定的类创建一个 logger 实例
@@ -37,6 +43,7 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
         _libraryManager = libraryManager;
         _providerManager = providerManager;
         _mediaInfoService = mediaInfoService;
+        _fileSystem = fileSystem; // 保存注入的 IFileSystem
     }
 
     // --- IScheduledTask 接口成员 ---
@@ -72,20 +79,168 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     {
         _logger.Info("[MediaInfoBootstrapTask] Task execution started.");
 
+        // 获取插件配置
+        var config = Plugin.Instance.Configuration;
+        if (config == null)
+        {
+            _logger.Error("[MediaInfoBootstrapTask] Failed to get plugin configuration. Cannot proceed.");
+            return; // 配置获取失败，退出任务
+        }
+
         try
         {
-            // TODO: 实现计划任务的核心逻辑
-            // 1. 查询所有 .strm 文件
-            // 2. 对每个 .strm 文件：
-            //    a. 检查是否有 .medinfo 文件
-            //       - 如果有，尝试恢复 (调用 _mediaInfoService.RestoreAsync)
-            //    b. 如果没有，检查是否有 MediaStreams
-            //       - 如果没有，触发探测 (调用 item.RefreshMetadata 或 providerManager.QueueRefresh)
-            //         -> 探测成功后，ItemUpdated 事件会触发，由事件监听器处理备份
-            // 3. 使用 progress.Report 更新进度 (注意参数顺序已变)
-            // 4. 监听 cancellationToken.IsCancellationRequested
+            // 1. 智能扫描：高效查询库中所有可能的 .strm 文件
+            _logger.Info("[MediaInfoBootstrapTask] Querying library for all video items...");
+            var query = new InternalItemsQuery
+            {
+                // .strm 文件在 Emby 中被识别为视频类型。这是最有效的数据库索引过滤条件。
+                MediaTypes = new[] { MediaType.Video },
 
-            _logger.Info("[MediaInfoBootstrapTask] Task execution completed (Not Implemented Yet).");
+                // 确保返回的项目都有一个文件系统路径，这是处理 .strm 文件的先决条件。
+                HasPath = true,
+
+                // 至关重要：确保查询能深入媒体库的所有子文件夹，以找到所有 .strm 文件。
+                Recursive = true
+            };
+
+            var allVideoItems = _libraryManager.GetItemList(query);
+
+            // 过滤出 Path 以 .strm 结尾的项目
+            var strmItems = allVideoItems.Where(item => item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            _logger.Info($"[MediaInfoBootstrapTask] Found {strmItems.Count} .strm files to process.");
+
+            // 计算总进度
+            var totalItems = strmItems.Count; // List<T> 使用 .Count 属性
+            if (totalItems == 0)
+            {
+                _logger.Info("[MediaInfoBootstrapTask] No .strm files found. Task completed.");
+                progress?.Report(100); // 报告 100% 进度
+                return;
+            }
+
+            var processedCount = 0;
+            var restoredCount = 0;
+            var probedCount = 0;
+            var skippedCount = 0;
+
+            // 配置中的并发数限制
+            var maxConcurrency = config.MaxConcurrency > 0 ? config.MaxConcurrency : 1; // 确保至少为 1
+
+            // 使用 SemaphoreSlim 限制并发数
+            using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+
+            // 使用自定义并发控制
+            var tasks = new List<Task>();
+
+            // 使用注入的 IFileSystem 创建 DirectoryService，并配置 MetadataRefreshOptions
+            var directoryService = new DirectoryService(_logger, _fileSystem);
+            var refreshOptions = new MetadataRefreshOptions(directoryService)
+            {
+                EnableRemoteContentProbe = true,
+                MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
+                ReplaceAllMetadata = false, // 不替换其他元数据
+                ImageRefreshMode = MetadataRefreshMode.ValidationOnly, // 不强制刷新图片
+                ReplaceAllImages = false,
+                EnableThumbnailImageExtraction = false, // 不提取缩略图
+                EnableSubtitleDownloading = false // 不下载字幕
+            };
+
+            foreach (var item in strmItems)
+            {
+                // 检查取消令牌
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.Info("[MediaInfoBootstrapTask] Task execution was cancelled during processing.");
+                    break; // 退出循环
+                }
+
+                // 等待信号量，控制并发
+                await semaphore.WaitAsync(cancellationToken);
+
+                var task = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // 检查取消令牌（在等待信号量后再次检查）
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            return; // 如果已取消，则不处理此项目
+                        }
+
+                        _logger.Debug($"[MediaInfoBootstrapTask] Processing .strm file: {item.Path}");
+
+                        // 检查是否存在 .medinfo 文件
+                        string medInfoPath = _mediaInfoService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
+
+                        if (System.IO.File.Exists(medInfoPath))
+                        {
+                            _logger.Info($"[MediaInfoBootstrapTask] Found .medinfo file for {item.Path}. Attempting restore.");
+                            // 存在 .medinfo 文件：尝试恢复 (自愈)
+                            var restoreResult = await _mediaInfoService.RestoreAsync(item);
+                            if (restoreResult)
+                            {
+                                restoredCount++;
+                                _logger.Info($"[MediaInfoBootstrapTask] Successfully restored MediaInfo for {item.Path}.");
+                            }
+                            else
+                            {
+                                _logger.Warn($"[MediaInfoBootstrapTask] Failed to restore MediaInfo for {item.Path}.");
+                            }
+                        }
+                        else
+                        {
+                            _logger.Debug($"[MediaInfoBootstrapTask] No .medinfo file found for {item.Path}.");
+                            // 不存在 .medinfo 文件：检查是否已有 MediaStreams
+                            bool hasMediaInfo = item.MediaStreams?.Any() ?? false;
+
+                            if (!hasMediaInfo)
+                            {
+                                _logger.Info($"[MediaInfoBootstrapTask] No MediaInfo found for {item.Path} and no .medinfo file. Attempting probe.");
+                                // 没有 MediaStreams 且没有 .medinfo 文件：触发探测
+                                // 使用预先创建的 MetadataRefreshOptions 来触发探测
+
+                                // 调用 RefreshMetadata 来触发探测
+                                await item.RefreshMetadata(refreshOptions, cancellationToken);
+                                // 探测成功后，ItemUpdated 事件会被触发，EventListener 会处理备份
+                                probedCount++;
+                                _logger.Info($"[MediaInfoBootstrapTask] Probe initiated for {item.Path}. Event listener will handle backup if successful.");
+                            }
+                            else
+                            {
+                                // 有 MediaStreams 但没有 .medinfo 文件：可能是一个新添加的、有信息但未备份的项目
+                                // 计划任务不直接处理这种情况，EventListener 会处理
+                                _logger.Debug($"[MediaInfoBootstrapTask] MediaInfo exists for {item.Path} but no .medinfo file. Event listener may handle backup.");
+                                skippedCount++;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"[MediaInfoBootstrapTask] Error processing item {item.Path}: {ex.Message}");
+                        _logger.Debug(ex.StackTrace); // 记录详细堆栈
+                    }
+                    finally
+                    {
+                        // 释放信号量
+                        semaphore.Release();
+
+                        // 更新进度
+                        Interlocked.Increment(ref processedCount);
+                        var currentProgress = (double)processedCount / totalItems * 100.0;
+                        progress?.Report(currentProgress);
+                    }
+                }, cancellationToken);
+
+                tasks.Add(task);
+            }
+
+            // 等待所有任务完成
+            await Task.WhenAll(tasks);
+
+            // 优化日志输出
+            var totalProcessed = restoredCount + probedCount + skippedCount;
+            _logger.Info($"[MediaInfoBootstrapTask] Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new metadata: {probedCount}, Skipped (already has metadata): {skippedCount}.");
         }
         catch (OperationCanceledException)
         {
