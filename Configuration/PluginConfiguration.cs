@@ -15,7 +15,7 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
     public enum BackupModeOption { SideBySide, Centralized }
     [DisplayName("Backup Mode")]
     [Description("Choose how to store .medinfo files. SideBySide: Next to the .strm file. Centralized: In a single specified root folder.")]
-    public BackupModeOption BackupMode { get; set; } = BackupMode.SideBySide;
+    public BackupModeOption BackupMode { get; set; } = BackupModeOption.SideBySide;
 
     // public string BackupMode { get; set; } = "SideBySide";
     //public IList<BackupMode> RestrictedCodecList => new[] { BackupMode.SideBySide, BackupMode.Centralized };
