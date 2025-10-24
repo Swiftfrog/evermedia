@@ -373,7 +373,7 @@ public class MediaInfoService
     }
 
     // --- 辅助方法：生成 .medinfo 文件路径 ---
-    private string GetMedInfoPath(BaseItem item)
+    public string GetMedInfoPath(BaseItem item)
     {
         // ✅ 修正：检查 item.Path 是否为 null
         if (string.IsNullOrEmpty(item.Path))
