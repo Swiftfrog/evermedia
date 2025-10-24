@@ -33,7 +33,7 @@ public class MediaInfoService
     private readonly IFileSystem _fileSystem;
     private readonly IJsonSerializer _jsonSerializer;
     private readonly IServerApplicationHost _applicationHost;
-    private readonly IMediaSourceManager _mediaSourceManager; // ✅ 添加 IMediaSourceManager 依赖
+    // private readonly IMediaSourceManager _mediaSourceManager; // ✅ 不再需要注入 IMediaSourceManager
 
     // --- 构造函数：接收 Emby 框架注入的依赖项 ---
     public MediaInfoService(
@@ -43,8 +43,8 @@ public class MediaInfoService
         IProviderManager providerManager, // 用于触发元数据刷新等
         IFileSystem fileSystem,           // 用于文件系统操作
         IJsonSerializer jsonSerializer,   // 用于序列化/反序列化 JSON
-        IServerApplicationHost applicationHost, // 用于获取插件配置
-        IMediaSourceManager mediaSourceManager // ✅ 注入 IMediaSourceManager
+        IServerApplicationHost applicationHost // 用于获取插件配置
+        // IMediaSourceManager mediaSourceManager // ✅ 不再注入 IMediaSourceManager
     )
     {
         // ✅ 使用 logManager 为这个服务类创建一个 logger 实例，日志前缀将是 "MediaInfoService"
@@ -55,7 +55,7 @@ public class MediaInfoService
         _fileSystem = fileSystem;
         _jsonSerializer = jsonSerializer;
         _applicationHost = applicationHost;
-        _mediaSourceManager = mediaSourceManager; // ✅ 保存 IMediaSourceManager
+        // _mediaSourceManager = mediaSourceManager; // ✅ 不再保存 IMediaSourceManager
     }
 
     // --- 核心方法：备份 MediaInfo ---
@@ -73,49 +73,38 @@ public class MediaInfoService
 
         try
         {
-            // 1. 获取项目的 MediaSourceInfo (使用 _mediaSourceManager)
-            // 需要获取 LibraryOptions
+            // 1. 获取项目的 LibraryOptions
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
-
-            // ✅ 修正：检查 GetLibraryOptions 是否返回 null
             if (libraryOptions == null)
             {
                 _logger.Error($"[MediaInfoService] Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
                 return false; // 没有库选项，无法进行后续操作
             }
 
-            // 调用 GetStaticMediaSources (8 参数版本)
-            // 参数: item, enableAlternateMediaSources, enablePathSubstitution, fillChapters, collectionFolders, libraryOptions, deviceProfile, user
-            var mediaSources = _mediaSourceManager.GetStaticMediaSources(
-                item,
-                false, // enableAlternateMediaSources - 通常为 false 用于当前项目
-                false, // enablePathSubstitution - 为 false
-                true,  // fillChapters - 设为 true 以获取章节信息
-                Array.Empty<BaseItem>(), // collectionFolders - 传空数组
-                libraryOptions, // 从项目获取的库选项
-                null,  // deviceProfile - 传 null
-                null   // user - 传 null
-            );
+            // 1. 获取项目的 MediaSourceInfo (使用 item.GetMediaSources - 选择合适的重载)
+            // 使用参数较少的重载，适用于 CoverArt，但也适用于获取当前已加载的信息
+            // 参数: enableAlternateMediaSources, enablePathSubstitution, libraryOptions
+            var mediaSources = item.GetMediaSources(false, false, libraryOptions); // ✅ 修正：使用带参数的 GetMediaSources
 
             if (mediaSources == null || !mediaSources.Any())
             {
-                _logger.Info($"[MediaInfoService] No MediaSources found for item: {item.Path ?? item.Name}. Skipping backup.");
+                _logger.Info($"[MediaInfoService] No MediaSources found via GetMediaSources for item: {item.Path ?? item.Name}. Skipping backup.");
                 return false; // 没有找到媒体源，无法备份
             }
 
-            // 2. 获取章节信息 (如果 fillChapters 在 GetStaticMediaSources 中设为 true，章节信息已在 mediaSources 中)
-            // 但我们也可以单独从 _itemRepository 获取
+            // 2. 获取章节信息 (章节信息通常已包含在 GetMediaSources 返回的 MediaSourceInfo 对象中)
+            // 我们可以再次从 item 获取，但 GetMediaSources 通常已处理好
+            // var chapters = _itemRepository.GetChapters(item); // 如果需要单独获取，可以保留
+            // 但 StrmAssistant 的方式是将 item.GetMediaSources() 返回的 MediaSourceInfo 对象直接用作 MediaSourceWithChapters.MediaSourceInfo
+            // 并且 StrmAssistant 在 Backup 时也会获取章节，然后赋值给 MediaSourceWithChapters.Chapters
+
+            // StrmAssistant 风格：获取章节
             var chapters = _itemRepository.GetChapters(item);
 
-            // ✅ 修正：检查 GetChapters 是否返回 null
-            if (chapters == null)
-            {
-                 _logger.Warn($"[MediaInfoService] GetChapters returned null for item: {item.Path ?? item.Name}. Using empty list.");
-                 // 将 chapters 设置为空列表，以便后续代码可以安全地使用 .ToList()
-                 chapters = new List<ChapterInfo>();
-            }
-
             // 3. 创建 MediaSourceWithChapters 对象列表
+            // 这里我们假设 item.GetMediaSources() 返回的每个 MediaSourceInfo 都可能关联相同的章节列表
+            // 或者，如果每个 MediaSourceInfo 都有自己的章节，需要更复杂的映射
+            // StrmAssistant 的代码片段显示它将所有 MediaSourceInfo 都关联到同一个章节列表
             var mediaSourcesWithChapters = mediaSources.Select(ms => new MediaSourceWithChapters
             {
                 MediaSourceInfo = ms, // ms 可能为 null
@@ -309,7 +298,6 @@ public class MediaInfoService
 
             // ✅ 修正 2: 使用 item.InternalId (long) 而不是 item.Id (Guid)
             var streamsToSave = mediaSourceInfo.MediaStreams?.ToList() ?? new List<MediaStream>();
-
             // 确保流的 Id 与 item.Id 关联 (通常在 SaveMediaStreams 时由框架处理，但检查一下)
             // MediaStream 对象本身通常不需要手动设置 ItemId，SaveMediaStreams 会处理
             // 但 Path 字段，对于外挂字幕，需要在恢复时重建完整路径
@@ -319,70 +307,45 @@ public class MediaInfoService
                 stream.Path = Path.Combine(item.ContainingFolderPath, stream.Path);
             }
 
+            // 调用 SaveMediaStreams
+            _logger.Debug($"[EverMedia:MediaInfoService] Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
+            // ✅ 修正 2: 使用 item.InternalId
+            _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None); // 注意：CancellationToken.None
 
-            // ✅ 修订核心逻辑：检查 streamsToSave 是否为空
-            if (streamsToSave.Any())
+            // 5c. 恢复章节 (使用 IItemRepository)
+            // ✅ 修正 2: 使用 item.InternalId (long) 而不是 item.Id (Guid)
+            // 需要重建章节图片路径（如果之前保存了图片）
+            // foreach (var chapter in chaptersToRestore.Where(c => !string.IsNullOrEmpty(c.ImagePath)))
+            // {
+            //     chapter.ImagePath = Path.Combine(item.ContainingFolderPath, Path.GetFileName(chapter.ImagePath));
+            // }
+            // 但 StrmAssistant 似乎没有持久化图片路径，而是图片标签 (ImageTag)，并且在恢复时清空了它。
+            // 我们遵循 StrmAssistant 的模式，清空 ImageTag。
+
+
+            // 5c. 恢复章节 (使用 IItemRepository)
+            // 需要重建章节图片路径（如果之前保存了图片）
+            // foreach (var chapter in chaptersToRestore.Where(c => !string.IsNullOrEmpty(c.ImagePath)))
+            // {
+            //     chapter.ImagePath = Path.Combine(item.ContainingFolderPath, Path.GetFileName(chapter.ImagePath));
+            // }
+            // 但 StrmAssistant 似乎没有持久化图片路径，而是图片标签 (ImageTag)，并且在恢复时清空了它。
+            // 我们遵循 StrmAssistant 的模式，清空 ImageTag。
+            foreach (var chapter in chaptersToRestore)
             {
-                // 如果 MediaStreams 不为空，正常执行保存
-                _logger.Debug($"[EverMedia:MediaInfoService] Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
-                _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None); // 注意：CancellationToken.None
-
-                // 5c. 恢复章节 (使用 IItemRepository)
-                // ✅ 修正 2: 使用 item.InternalId (long) 而不是 item.Id (Guid)
-                // 需要重建章节图片路径（如果之前保存了图片）
-                // foreach (var chapter in chaptersToRestore.Where(c => !string.IsNullOrEmpty(c.ImagePath)))
-                // {
-                //     chapter.ImagePath = Path.Combine(item.ContainingFolderPath, Path.GetFileName(chapter.ImagePath));
-                // }
-                // 但 StrmAssistant 似乎没有持久化图片路径，而是图片标签 (ImageTag)，并且在恢复时清空了它。
-                // 我们遵循 StrmAssistant 的模式，清空 ImageTag。
-
-
-                // 5c. 恢复章节 (使用 IItemRepository)
-                // 需要重建章节图片路径（如果之前保存了图片）
-                // foreach (var chapter in chaptersToRestore.Where(c => !string.IsNullOrEmpty(c.ImagePath)))
-                // {
-                //     chapter.ImagePath = Path.Combine(item.ContainingFolderPath, Path.GetFileName(chapter.ImagePath));
-                // }
-                // 但 StrmAssistant 似乎没有持久化图片路径，而是图片标签 (ImageTag)，并且在恢复时清空了它。
-                // 我们遵循 StrmAssistant 的模式，清空 ImageTag。
-                foreach (var chapter in chaptersToRestore)
-                {
-                    chapter.ImageTag = null; // 清空图片标签，避免上下文问题
-                }
-
-                _logger.Debug($"[EverMedia:MediaInfoService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
-                _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
-
-                // 5d. 更新项目并通知 (使用 ILibraryManager)
-                _logger.Debug($"[EverMedia:MediaInfoService] Updating item in library for: {item.Path ?? item.Name}");
-                // 使用 UpdateItems 或 UpdateItem
-                // 推荐使用 UpdateItems 以明确指定更新原因
-                _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
-                _logger.Info($"[EverMedia:MediaInfoService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
-                return true; // 成功恢复
-            }
-            else
-            {
-                // ✅ 修订：如果 MediaStreams 为空，说明 .medinfo 文件无效/损坏，删除它
-                _logger.Warn($"[EverMedia:MediaInfoService] MediaStreams in .medinfo file is empty for item: {item.Path ?? item.Name}. Deleting invalid .medinfo file: {medInfoPath}");
-                try
-                {
-                    _fileSystem.DeleteFile(medInfoPath);
-                    _logger.Info($"[EverMedia:MediaInfoService] Deleted invalid .medinfo file: {medInfoPath}");
-                    // 返回 true，因为逻辑上处理了问题（删除了损坏文件）
-                    // 计划任务会稍后扫描到 .strm 文件并为其生成新的 .medinfo
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"[EverMedia:MediaInfoService] Error deleting invalid .medinfo file {medInfoPath}: {ex.Message}");
-                    _logger.Debug(ex.StackTrace); // 记录详细堆栈
-                    // 删除失败，返回 false，表示恢复（或处理）失败
-                    return false;
-                }
+                chapter.ImageTag = null; // 清空图片标签，避免上下文问题
             }
 
+            _logger.Debug($"[EverMedia:MediaInfoService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
+            _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
+
+            // 5d. 更新项目并通知 (使用 ILibraryManager)
+            _logger.Debug($"[EverMedia:MediaInfoService] Updating item in library for: {item.Path ?? item.Name}");
+            // 使用 UpdateItems 或 UpdateItem
+            // 推荐使用 UpdateItems 以明确指定更新原因
+            _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
+            _logger.Info($"[EverMedia:MediaInfoService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
+            return true;
         }
         catch (Exception ex)
         {
@@ -410,7 +373,7 @@ public class MediaInfoService
     }
 
     // --- 辅助方法：生成 .medinfo 文件路径 ---
-    public string GetMedInfoPath(BaseItem item)
+    private string GetMedInfoPath(BaseItem item)
     {
         // ✅ 修正：检查 item.Path 是否为 null
         if (string.IsNullOrEmpty(item.Path))
