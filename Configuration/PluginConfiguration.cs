@@ -18,17 +18,9 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
     [Description("Choose how to store .medinfo files. SideBySide: Next to the .strm file. Centralized: In a single specified root folder.")]
     public BackupMode BackupMode { get; set; } = BackupMode.SideBySide;
 
-    // public string BackupMode { get; set; } = "SideBySide";
-    //public IList<BackupMode> RestrictedCodecList => new[] { BackupMode.SideBySide, BackupMode.Centralized };
-    //[SelectItemsSource(nameof(RestrictedCodecList))]
-    //public BackupMode RestrictedEnumSelect { get; set; } = BackupMode.SideBySide;
 
-
-    [DisplayName("Centralized Root Path")]
-    [Description("Root folder path for storing .medinfo files when 'Centralized' mode is selected.")]
-    // public string CentralizedRootPath { get; set; } = "";
-    [EditFolderPicker]
-    public string CentralizedRootPath { get; set; } = "";
+    [DisplayName("Centralized Root Path")] [Description("Root folder path for storing .medinfo files when 'Centralized' mode is selected.")] // public string 
+    CentralizedRootPath { get; set; } = ""; [EditFolderPicker] public string CentralizedRootPath { get; set; } = "";
 
 
     [DisplayName("Enable Self-Healing")]
@@ -37,12 +29,13 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
 
     [DisplayName("Max Concurrency")]
     [Description("Maximum number of concurrent operations for the bootstrap task.")]
-    public int MaxConcurrency { get; set; } = 4;
+    public int MaxConcurrency { get; set; } = 2;
 
     [DisplayName("Bootstrap Task Rate Limit (Seconds)")]
     [Description("Minimum interval in seconds between FFProbe calls during the bootstrap task to avoid overwhelming the HTTP server. Set to 0 to disable rate limiting.")] // 提供描述
-    [Range(0, 60)] // 限制范围，例如 0 到 60 秒，0 表示不延迟
-    public int BootstrapTaskRateLimitSeconds { get; set; } = 3; // 默认值为 3 秒
+    //[Range(0, 60)] // 限制范围，例如 0 到 60 秒，0 表示不延迟
+    [MinValue(0), MaxValue(10)]
+    public int BootstrapTaskRateLimitSeconds { get; set; } = 2;
 
     [DisplayName("Enable Orphan Cleanup")]
     [Description("Clean up .medinfo files that no longer have a corresponding .strm file.")]
