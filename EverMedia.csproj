@@ -18,6 +18,8 @@
   <ItemGroup>
     <!-- 引用 Emby 4.9.1.80 的核心包 -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" />
+    <!-- ✅ 添加 System.Threading.RateLimiting NuGet 包引用 -->
+    <PackageReference Include="System.Threading.RateLimiting" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
