@@ -137,16 +137,25 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
             // 配置中的并发数限制
             var maxConcurrency = config.MaxConcurrency > 0 ? config.MaxConcurrency : 1; // 确保至少为 1
-            // 配置中的速率限制 (例如，每秒最多 1 个请求，突发允许 2 个)
+            // 配置中的速率限制参数 (例如，每秒最多 1 个请求，突发允许 2 个)
             // 你可以根据需要从配置中读取这些值，这里使用硬编码示例
-            var requestsPerSecond = 1; // 你可以从 PluginConfiguration 添加一个 RateLimitPerSecond 属性
-            var permitLimit = requestsPerSecond; // 每秒发放的许可数
-            var burstLimit = Math.Max(2, maxConcurrency); // 突发容量，可以设为略大于并发数或固定值
+            var permitsPerPeriod = 1; // 每个周期发放的许可数 (相当于每秒请求数)
+            var tokenLimit = Math.Max(2, maxConcurrency); // 令牌桶的最大容量 (突发容量)
+            var period = TimeSpan.FromSeconds(1); // 补充 permitsPerPeriod 个许可的时间间隔 (1秒)
 
             // 使用 SemaphoreSlim 限制并发数 (同时运行的 FFProbe 数量)
             using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
             // 使用 RateLimiter 限制启动 FFProbe 的频率
-            using var rateLimiter = new TokenBucketRateLimiter(new TokenBucketRateLimiterOptions(permitLimit, TimeSpan.FromSeconds(1), burstLimit, QueueLimitingStrategy.Reject));
+            // 使用 TokenBucketRateLimiterOptions 的标准构造函数 (tokenLimit, period, permitsPerPeriod, queueLimitingStrategy)
+            using var rateLimiter = new TokenBucketRateLimiter(
+                new TokenBucketRateLimiterOptions(
+                    tokenLimit, // tokenLimit: 桶的最大容量
+                    period,     // tokenReplenishmentPeriod: 补充周期
+                    permitsPerPeriod, // tokensPerPeriod: 每个周期补充的许可数
+                    QueueLimitingStrategy.Wait // queueLimitingStrategy: 队列策略，默认为 Wait
+                    // 注意：QueueLimitingStrategy 是枚举，需要导入 System.Threading.RateLimiting
+                )
+            );
 
             // 使用自定义并发控制
             var tasks = new List<Task>();
@@ -179,24 +188,16 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                 var task = Task.Run(async () =>
                 {
                     // --- Rate Limiting: Acquire permit before starting FFProbe ---
-                    // 在获取到并发许可后，再尝试获取速率限制许可
-                    // 这确保了即使有并发空位，也不会超过速率限制
                     RateLimitLease lease = null;
                     try
                     {
                         // 尝试获取速率限制许可，使用与任务相同的取消令牌
+                        // TokenBucket 默认行为是等待直到有许可可用 (QueueLimitingStrategy.Wait)
                         lease = await rateLimiter.AcquireAsync(1, cancellationToken);
-                        // 如果 lease.IsAcquired 为 false，说明被限流策略拒绝（QueueLimitingStrategy.Reject）
-                        // 但在 TokenBucket 模式下，通常会等待直到许可可用，除非被取消或策略是拒绝
-                        // TokenBucket 默认行为是等待，直到有许可。如果 QueueLimitingStrategy 是 Reject，
-                        // 当队列满了且没有许可时，AcquireAsync 会抛出 OperationCanceledException (如果被取消) 或其他异常。
-                        // 对于 TokenBucket，更常见的是等待。
-                        // 如果你使用的是 ConcurrencyLimiter，它有更明确的拒绝机制。
-                        // 这里我们假设 TokenBucket 会等待直到有许可。
+                        // 检查 IsAcquired 以确认是否成功获取，虽然 Wait 策略下通常会获取成功（除非被取消）
                         if (!lease.IsAcquired)
                         {
-                            // This shouldn't happen with TokenBucket and Wait strategy unless Reject is used and queue is full.
-                            // Log and release semaphore if somehow the lease wasn't acquired due to rejection.
+                            // This shouldn't happen with TokenBucket and Wait strategy unless explicitly cancelled or Reject is used.
                             _logger.Warn($"[MediaInfoBootstrapTask] Rate limit lease not acquired for {item.Path}. Skipping.");
                             return; // Exit this task instance without processing
                         }
@@ -272,7 +273,6 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                     {
                         // 释放速率限制许可 (通过 using lease 或显式调用)
                         // TokenBucketRateLimiter's lease is typically disposed after use.
-                        // It's good practice to dispose it.
                         lease?.Dispose(); // Ensure the lease is returned to the limiter
 
                         // 释放并发信号量
