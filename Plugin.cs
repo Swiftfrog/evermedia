@@ -20,6 +20,17 @@ public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 Base
     // 这个属性可以从插件内部调用受保护的 GetOptions() 方法。
     public PluginConfiguration Configuration => GetOptions();
 
+    // ✅ 添加一个公共方法来更新并保存 LastBootstrapTaskRun 时间戳
+    public void UpdateLastBootstrapTaskRun(DateTime? newTimestamp)
+    {
+        var config = GetOptions(); // 获取当前配置
+        if (config != null)
+        {
+            config.LastBootstrapTaskRun = newTimestamp; // 更新时间戳
+            SaveOptions(config); // 使用基类的 SaveOptions 保存
+        }
+    }
+
     // ✅ 构造函数使用 IServerApplicationHost
     public Plugin(IServerApplicationHost applicationHost)
         : base(applicationHost) // 将 applicationHost 传递给基类
