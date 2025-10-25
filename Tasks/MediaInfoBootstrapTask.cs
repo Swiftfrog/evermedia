@@ -1,4 +1,4 @@
-// Tasks/MediaInfoBootstrapTask.cs
+// Tasks/MediaInfoBootstrapTask.cs (Revised for MinDateLastSaved)
 using MediaBrowser.Controller.Entities; // BaseItem
 using MediaBrowser.Controller.Library; // ILibraryManager
 using MediaBrowser.Controller.Providers; // IProviderManager
@@ -87,15 +87,15 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             return; // 配置获取失败，退出任务
         }
 
-        // 记录任务开始时间，用于后续更新配置
+        // 记录任务开始时间，用于后续更新配置和查询
         var taskStartTime = DateTime.UtcNow;
 
         try
         {
             // 1. 智能扫描：高效查询库中所有可能的 .strm 文件
-            // 使用 MinDateModified 实现增量更新
+            // 使用 MinDateLastSaved 实现增量更新
             var lastRunTimestamp = config.LastBootstrapTaskRun;
-            _logger.Info($"[MediaInfoBootstrapTask] Querying library for .strm files modified since {lastRunTimestamp?.ToString("O") ?? "the beginning of time"}...");
+            _logger.Info($"[MediaInfoBootstrapTask] Querying library for .strm files with metadata updated since {lastRunTimestamp?.ToString("O") ?? "the beginning of time"}...");
 
             var query = new InternalItemsQuery
             {
@@ -108,22 +108,22 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                 // 至关重要：确保查询能深入媒体库的所有子文件夹，以找到所有 .strm 文件。
                 Recursive = true,
 
-                // ✅ 新增：只查询自上次运行后修改过的项目
-                MinDateModified = lastRunTimestamp
+                // ✅ 新增：只查询自上次运行后元数据被保存过的项目
+                MinDateLastSaved = lastRunTimestamp
             };
 
             var allVideoItems = _libraryManager.GetItemList(query);
 
             // 过滤出 Path 以 .strm 结尾的项目
-            var strmItems = allVideoItems.Where(item => item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase)).ToList();
+            var strmItemsToProcess = allVideoItems.Where(item => item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase)).ToList();
 
-            _logger.Info($"[MediaInfoBootstrapTask] Found {strmItems.Count} .strm files modified since last run to process.");
+            _logger.Info($"[MediaInfoBootstrapTask] Found {strmItemsToProcess.Count} .strm files with metadata updated since last run to process.");
 
-            // 计算总进度
-            var totalItems = strmItems.Count; // List<T> 使用 .Count 属性
+            // 计算总进度 (基于过滤后的列表)
+            var totalItems = strmItemsToProcess.Count; // List<T> 使用 .Count 属性
             if (totalItems == 0)
             {
-                _logger.Info("[MediaInfoBootstrapTask] No .strm files found modified since last run. Task completed.");
+                _logger.Info("[MediaInfoBootstrapTask] No .strm files found with updated metadata since last run. Task completed.");
                 progress?.Report(100); // 报告 100% 进度
                 return;
             }
@@ -155,7 +155,7 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                 EnableSubtitleDownloading = false // 不下载字幕
             };
 
-            foreach (var item in strmItems)
+            foreach (var item in strmItemsToProcess) // 注意：循环对象改为过滤后的列表
             {
                 // 检查取消令牌
                 if (cancellationToken.IsCancellationRequested)
@@ -177,7 +177,7 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                             return; // 如果已取消，则不处理此项目
                         }
 
-                        _logger.Debug($"[MediaInfoBootstrapTask] Processing .strm file: {item.Path}");
+                        _logger.Debug($"[MediaInfoBootstrapTask] Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
 
                         // 检查是否存在 .medinfo 文件
                         string medInfoPath = _mediaInfoService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
@@ -250,23 +250,12 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
             // 优化日志输出
             var totalProcessed = restoredCount + probedCount + skippedCount;
-            _logger.Info($"[MediaInfoBootstrapTask] Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new metadata: {probedCount}, Skipped (already has metadata): {skippedCount}.");
+            _logger.Info($"[MediaInfoBootstrapTask] Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new meta {probedCount}, Skipped (already has metadata): {skippedCount}.");
 
             // ✅ 在任务成功完成（没有被取消或抛出未处理异常）后，更新配置中的时间戳
-            // 从 Plugin.Instance 获取当前配置的实例
-            var currentPluginConfig = Plugin.Instance.Configuration;
-            if (currentPluginConfig != null)
-            {
-                // 更新 LastBootstrapTaskRun 为任务开始时间（或结束时间 taskEndTime = DateTime.UtcNow; 也可以）
-                currentPluginConfig.LastBootstrapTaskRun = taskStartTime;
-                // 使用 Plugin.Instance (BasePluginSimpleUI) 的 SaveOptions 方法保存更改
-                Plugin.Instance.SaveOptions(currentPluginConfig);
-                _logger.Info($"[MediaInfoBootstrapTask] Last run timestamp updated to {taskStartTime:O}.");
-            }
-            else
-            {
-                _logger.Warn("[MediaInfoBootstrapTask] Could not update LastBootstrapTaskRun timestamp: Plugin configuration instance was null.");
-            }
+            // 调用 Plugin.Instance 上的公共方法来更新和保存配置
+            Plugin.Instance.UpdateLastBootstrapTaskRun(taskStartTime);
+            _logger.Info($"[MediaInfoBootstrapTask] Last run timestamp updated to {taskStartTime:O} via Plugin.Instance.");
 
         }
         catch (OperationCanceledException)
