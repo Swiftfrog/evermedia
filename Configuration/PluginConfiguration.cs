@@ -39,6 +39,11 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
     [Description("Maximum number of concurrent operations for the bootstrap task.")]
     public int MaxConcurrency { get; set; } = 4;
 
+    [DisplayName("Bootstrap Task Rate Limit (Seconds)")]
+    [Description("Minimum interval in seconds between FFProbe calls during the bootstrap task to avoid overwhelming the HTTP server. Set to 0 to disable rate limiting.")] // 提供描述
+    [Range(0, 60)] // 限制范围，例如 0 到 60 秒，0 表示不延迟
+    public int BootstrapTaskRateLimitSeconds { get; set; } = 3; // 默认值为 3 秒
+
     [DisplayName("Enable Orphan Cleanup")]
     [Description("Clean up .medinfo files that no longer have a corresponding .strm file.")]
     public bool EnableOrphanCleanup { get; set; } = false;

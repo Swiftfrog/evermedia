@@ -1,4 +1,4 @@
-// Tasks/MediaInfoBootstrapTask.cs (Revised with all IScheduledTask members and Task.Delay rate limiting)
+// Tasks/MediaInfoBootstrapTask.cs (Revised with config-based rate limiting using TimeSpan)
 using MediaBrowser.Controller.Entities; // BaseItem
 using MediaBrowser.Controller.Library; // ILibraryManager
 using MediaBrowser.Controller.Providers; // IProviderManager
@@ -48,20 +48,16 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
     // --- IScheduledTask 接口成员 ---
 
-    // ✅ 必需：任务在 UI 中显示的名称
-    public string Name => "MediaInfo Bootstrap Task";
+    public string Name => "MediaInfo Bootstrap Task"; // 任务在 UI 中显示的名称
 
-    // ✅ 必需：任务的唯一键
-    public string Key => "MediaInfoBootstrapTask";
+    public string Key => "MediaInfoBootstrapTask"; // 任务的唯一键
 
-    // ✅ 必需：任务描述
-    public string Description => "Scan and persist MediaInfo for .strm files.";
+    public string Description => "Scan and persist MediaInfo for .strm files."; // 任务描述
 
-    // ✅ 必需：任务所属类别
-    public string Category => "EverMedia"; // 你可以根据需要更改
+    public string Category => "EverMedia"; // 任务所属类别
 
     // --- 获取默认触发器 ---
-    // ✅ 必需：返回一个 TaskTriggerInfo 对象的集合，定义任务的默认运行计划。
+    // 返回一个 TaskTriggerInfo 对象的集合，定义任务的默认运行计划。
     // 如果返回空集合或 null，则任务默认不会自动运行，只能手动触发。
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
@@ -77,8 +73,8 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     }
 
     // --- 核心执行方法 ---
-    // ✅ 必需：方法名从 ExecuteAsync 改为 Execute
-    // ✅ 必需：参数顺序从 (IProgress, CancellationToken) 改为 (CancellationToken, IProgress)
+    // ✅ 修正 1: 方法名从 ExecuteAsync 改为 Execute
+    // ✅ 修正 2: 参数顺序从 (IProgress, CancellationToken) 改为 (CancellationToken, IProgress)
     public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
     {
         _logger.Info("[MediaInfoBootstrapTask] Task execution started.");
@@ -137,9 +133,23 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             var probedCount = 0;
             var skippedCount = 0;
 
-            // --- Rate Limiting: Simple delay-based approach ---
-            // Configure desired rate (e.g., 1 request every 3 seconds)
-            var rateLimitIntervalMs = 3000; // 3 seconds in milliseconds (configurable via PluginConfiguration if needed)
+            // --- Rate Limiting: Config-based delay using TimeSpan ---
+            // 从配置中读取速率限制间隔（单位：秒）
+            var configRateLimitSeconds = config.BootstrapTaskRateLimitSeconds;
+            TimeSpan rateLimitInterval; // 定义 TimeSpan 变量
+            if (configRateLimitSeconds <= 0)
+            {
+                // 如果配置值 <= 0，则禁用速率限制
+                rateLimitInterval = TimeSpan.Zero;
+                _logger.Info("[MediaInfoBootstrapTask] Rate limiting is disabled (BootstrapTaskRateLimitSeconds <= 0).");
+            }
+            else
+            {
+                // 否则，使用配置的秒数创建 TimeSpan
+                rateLimitInterval = TimeSpan.FromSeconds(configRateLimitSeconds);
+                _logger.Info($"[MediaInfoBootstrapTask] Rate limiting enabled: {rateLimitInterval.TotalSeconds} seconds interval between FFProbe calls.");
+            }
+
             var lastProbeStart = DateTimeOffset.MinValue; // Track the time the last probe started
 
             // --- Concurrency Control ---
@@ -181,16 +191,25 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         // 检查取消令牌（在获取到并发许可后再次检查）
                         if (cancellationToken.IsCancellationRequested) return;
 
-                        // --- Simple Rate Limiting Logic ---
-                        // Wait until the required interval has passed since the last probe started
-                        var now = DateTimeOffset.UtcNow;
-                        var timeToWait = rateLimitIntervalMs - (now - lastProbeStart).TotalMilliseconds;
-                        if (timeToWait > 0)
+                        // --- Config-based Rate Limiting Logic ---
+                        if (rateLimitInterval > TimeSpan.Zero) // 只有当速率限制启用时才执行延迟逻辑
                         {
-                            await Task.Delay(TimeSpan.FromMilliseconds(timeToWait), cancellationToken);
+                            var now = DateTimeOffset.UtcNow;
+                            var timeElapsed = now - lastProbeStart;
+                            var timeToWait = rateLimitInterval - timeElapsed;
+                            if (timeToWait > TimeSpan.Zero)
+                            {
+                                _logger.Debug($"[MediaInfoBootstrapTask] Waiting {timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
+                                await Task.Delay(timeToWait, cancellationToken); // 直接使用 TimeSpan
+                            }
+                            // Update the timestamp *after* the delay
+                            lastProbeStart = DateTimeOffset.UtcNow;
                         }
-                        // Update the timestamp *after* the delay
-                        lastProbeStart = DateTimeOffset.UtcNow;
+                        else
+                        {
+                            // 如果禁用了速率限制，仍然更新时间戳以备后续可能的逻辑使用（虽然这里没用到）
+                            lastProbeStart = DateTimeOffset.UtcNow;
+                        }
                         // --- End of Rate Limiting Logic ---
 
                         _logger.Debug($"[MediaInfoBootstrapTask] Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
