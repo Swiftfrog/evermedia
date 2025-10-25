@@ -43,6 +43,10 @@ public class PluginConfiguration : EditableOptionsBase // ✅ 继承 EditableOpt
     [Description("Clean up .medinfo files that no longer have a corresponding .strm file.")]
     public bool EnableOrphanCleanup { get; set; } = false;
 
+    [DisplayName("Last Bootstrap Task Run (UTC)")]
+    [Description("The UTC time when the MediaInfo Bootstrap Task last completed successfully. Used for incremental scanning. Modify manually with caution.")] // 提供描述，告知用户其用途和修改注意事项
+    public DateTime? LastBootstrapTaskRun { get; set; } = null; // 初始值为 null
+
     [DisplayName("Log Level")]
     [Description("Minimum level for logging messages from this plugin.")]
     //public string LogLevel { get; set; } = "Info";
