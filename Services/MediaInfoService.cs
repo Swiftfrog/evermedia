@@ -193,12 +193,12 @@ public class EverMediaService
     public async Task<bool> RestoreAsync(BaseItem item)
     {
         // ✅ 修正日志前缀为 "EverMedia" + 类名
-        _logger.Info($"[EverMedia:MediaInfoService] Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+        _logger.Info($"[EverMediaService] Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
 
         var config = GetConfiguration();
         if (config == null)
         {
-            _logger.Error("[EverMedia:MediaInfoService] Failed to get plugin configuration for RestoreAsync.");
+            _logger.Error("[EverMediaService] Failed to get plugin configuration for RestoreAsync.");
             return false;
         }
 
@@ -206,11 +206,11 @@ public class EverMediaService
         {
             // 1. 查找对应的 .medinfo 文件
             string medInfoPath = GetMedInfoPath(item);
-            _logger.Debug($"[EverMedia:MediaInfoService] Looking for medinfo file: {medInfoPath}");
+            _logger.Debug($"[EverMediaService] Looking for medinfo file: {medInfoPath}");
 
             if (!_fileSystem.FileExists(medInfoPath))
             {
-                _logger.Info($"[EverMedia:MediaInfoService] No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
+                _logger.Info($"[EverMediaService] No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
                 return false; // 文件不存在，无法恢复
             }
 
@@ -223,13 +223,13 @@ public class EverMediaService
             }
             catch (Exception ex)
             {
-                _logger.Error($"[EverMedia:MediaInfoService] Error deserializing medinfo file {medInfoPath}: {ex.Message}");
+                _logger.Error($"[EverMediaService] Error deserializing medinfo file {medInfoPath}: {ex.Message}");
                 return false;
             }
 
             if (backupDataObject == null)
             {
-                _logger.Warn($"[EverMedia:MediaInfoService] Deserialized medinfo file {medInfoPath} is null.");
+                _logger.Warn($"[EverMediaService] Deserialized medinfo file {medInfoPath} is null.");
                 return false;
             }
 
@@ -244,20 +244,20 @@ public class EverMediaService
             }
             catch (Exception ex)
             {
-                 _logger.Error($"[EverMedia:MediaInfoService] Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
+                 _logger.Error($"[EverMediaService] Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
                  _logger.Debug(ex.StackTrace); // 记录详细堆栈
                  return false;
             }
 
             if (backupDto == null || backupDto.Data == null || !backupDto.Data.Any())
             {
-                _logger.Warn($"[EverMedia:MediaInfoService] No data found in medinfo file {medInfoPath}.");
+                _logger.Warn($"[EverMediaService] No data found in medinfo file {medInfoPath}.");
                 return false;
             }
 
 
             // 3. 版本检查 (可选)
-            _logger.Debug($"[EverMedia:MediaInfoService] Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
+            _logger.Debug($"[EverMediaService] Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
             // TODO: 在这里可以添加版本兼容性检查逻辑
 
             // 4. 选择要恢复的数据 (通常取第一个)
@@ -267,7 +267,7 @@ public class EverMediaService
 
             if (mediaSourceInfo == null)
             {
-                _logger.Warn($"[EverMedia:MediaInfoService] MediaSourceInfo in medinfo file {medInfoPath} is null.");
+                _logger.Warn($"[EverMediaService] MediaSourceInfo in medinfo file {medInfoPath} is null.");
                 return false;
             }
 
@@ -308,7 +308,7 @@ public class EverMediaService
             }
 
             // 调用 SaveMediaStreams
-            _logger.Debug($"[EverMedia:MediaInfoService] Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
+            _logger.Debug($"[EverMediaService] Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
             // ✅ 修正 2: 使用 item.InternalId
             _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None); // 注意：CancellationToken.None
 
@@ -336,20 +336,20 @@ public class EverMediaService
                 chapter.ImageTag = null; // 清空图片标签，避免上下文问题
             }
 
-            _logger.Debug($"[EverMedia:MediaInfoService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
+            _logger.Debug($"[EverMediaService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
             _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
 
             // 5d. 更新项目并通知 (使用 ILibraryManager)
-            _logger.Debug($"[EverMedia:MediaInfoService] Updating item in library for: {item.Path ?? item.Name}");
+            _logger.Debug($"[EverMediaService] Updating item in library for: {item.Path ?? item.Name}");
             // 使用 UpdateItems 或 UpdateItem
             // 推荐使用 UpdateItems 以明确指定更新原因
             _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
-            _logger.Info($"[EverMedia:MediaInfoService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
+            _logger.Info($"[EverMediaService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
             return true;
         }
         catch (Exception ex)
         {
-            _logger.Error($"[EverMedia:MediaInfoService] Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Error($"[EverMediaService] Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
             _logger.Debug(ex.StackTrace); // 记录详细堆栈
             return false;
         }
