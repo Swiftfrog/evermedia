@@ -431,7 +431,6 @@ public class EverMediaService
                 return Path.Combine(item.ContainingFolderPath, medInfoFileName);
             }
 
-            //return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
         }
         else
         {

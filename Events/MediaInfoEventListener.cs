@@ -55,7 +55,8 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
 
             // V6 架构: 快速恢复逻辑
             // 1. 检查是否存在 .medinfo 文件 (使用内部方法获取路径)
-            string medInfoPath = GetMedInfoPath(item);
+            // string medInfoPath = GetMedInfoPath(item);
+            string medInfoPath = _everMediaService.GetMedInfoPath(item);
             if (_fileSystem.FileExists(medInfoPath))
             {
                 _logger.Info($"[EverMediaEventListener] .medinfo file found for added item: {item.Path}. Attempting quick restore.");
@@ -122,7 +123,8 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
             // 如果需要更精确的过滤，可能需要更深入的 Emby 内部机制，暂时按状态检查
 
             // 3. 逻辑判断
-            string medInfoPath = GetMedInfoPath(item); // 使用内部方法获取路径
+            // string medInfoPath = GetMedInfoPath(item); // 使用内部方法获取路径
+            string medInfoPath = _everMediaService.GetMedInfoPath(item);
             // --- 修正：使用新的 HasMediaInfo 方法 ---
             bool hasMediaInfo = HasMediaInfo(item);
             bool medInfoExists = _fileSystem.FileExists(medInfoPath);
@@ -178,14 +180,6 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
         return hasVideoOrAudio; // 可以根据需要决定是否包含 Size == 0 的检查
     }
 
-
-    // --- 辅助方法：获取插件配置 ---
-    // ✅ 使用 Plugin.Instance.Configuration 模式，与 MediaInfoService 一致
-    private PluginConfiguration? GetConfiguration()
-    {
-        // ✅ 通过 Plugin.Instance 获取配置
-        return Plugin.Instance.Configuration;
-    }
 
     // --- 辅助方法：生成 .medinfo 文件路径 ---
     // ✅ 直接复制并修改自 MediaInfoService.cs 的 GetMedInfoPath 方法，使用 Plugin.Instance 获取配置
