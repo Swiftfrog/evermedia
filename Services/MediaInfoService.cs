@@ -399,7 +399,7 @@ public class EverMediaService
         // 使用配置
         if (config.BackupMode == BackupMode.Centralized && !string.IsNullOrEmpty(config.CentralizedRootPath))
         {
-////+ 
+
             // 如果是中心化模式且路径有效，则构建中心化路径
             // 注意：GetRelativePath 可能需要处理不同的根目录情况
             
@@ -431,7 +431,7 @@ public class EverMediaService
                 return Path.Combine(item.ContainingFolderPath, medInfoFileName);
             }
 
-            return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
+            //return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
         }
         else
         {
