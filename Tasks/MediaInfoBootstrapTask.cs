@@ -216,13 +216,13 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         _logger.Debug($"[EverMediaBootstrapTask] Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
 
                         // 检查是否存在 .medinfo 文件
-                        string medInfoPath = _mediaInfoService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
+                        string medInfoPath = _everMediaService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
 
                         if (System.IO.File.Exists(medInfoPath))
                         {
                             _logger.Info($"[EverMediaBootstrapTask] Found .medinfo file for {item.Path}. Attempting restore.");
                             // 存在 .medinfo 文件：尝试恢复 (自愈)
-                            var restoreResult = await _mediaInfoService.RestoreAsync(item);
+                            var restoreResult = await _everMediaService.RestoreAsync(item);
                             if (restoreResult)
                             {
                                 restoredCount++;
