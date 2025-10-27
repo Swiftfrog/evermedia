@@ -96,6 +96,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             // 1. 智能扫描：高效查询库中所有可能的 .strm 文件
             // 使用 MinDateLastSaved 实现增量更新
             var lastRunTimestamp = config.LastBootstrapTaskRun;
+            
             _logger.Info($"[EverMediaBootstrapTask] Querying library for .strm files with metadata updated since {lastRunTimestamp?.ToString("O") ?? "the beginning of time"}...");
 
             var query = new InternalItemsQuery
@@ -288,13 +289,11 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             var totalProcessed = restoredCount + probedCount + skippedCount;
             _logger.Info($"[EverMediaBootstrapTask] Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new meta {probedCount}, Skipped (already has metadata): {skippedCount}.");
 
-            // ✅ 修正：在任务成功完成后，记录当前时间作为下一次运行的基准
-            // 原来的错误代码：
-            // Plugin.Instance.UpdateLastBootstrapTaskRun(taskStartTime);
-            // _logger.Info($"[EverMediaBootstrapTask] Last run timestamp updated to {taskStartTime:O} via Plugin.Instance.");
-
-            var taskCompletionTime = DateTime.UtcNow; // 记录任务完成时间
-            Plugin.Instance.UpdateLastBootstrapTaskRun(taskCompletionTime); // 使用完成时间更新配置
+            // ✅ 修正：在任务成功完成后，记录一个稍晚于当前时间的时间戳作为下一次运行的基准
+            // ✅ 方案：硬编码增加 1 毫秒偏移量，确保下一次查询起点晚于本次任务结束时间
+            var taskCompletionTime = DateTime.UtcNow.AddMilliseconds(1); // 记录并增加偏移
+            Plugin.Instance.UpdateLastBootstrapTaskRun(taskCompletionTime); // 使用增加偏移后的时间更新配置
+            // var taskCompletionTime = DateTime.UtcNow; // 记录任务完成时间,执行效率很高的话，任务的最后一个项目的时间和记任务完成时间一样。那么最后一个任务会再二次任务时被跟更新。
             _logger.Info($"[EverMediaBootstrapTask] Last run timestamp updated to task completion time: {taskCompletionTime:O} via Plugin.Instance.");
 
         }
