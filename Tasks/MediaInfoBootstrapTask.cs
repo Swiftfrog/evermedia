@@ -31,7 +31,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     private readonly IFileSystem _fileSystem; // 注入 IFileSystem
 
     // --- 构造函数：接收依赖项 ---
-    public MediaInfoBootstrapTask(
+    public EverMediaBootstrapTask(
         ILogManager logManager,           // 请求日志管理器工厂
         ILibraryManager libraryManager,   // 用于查询媒体库项目
         IProviderManager providerManager, // 用于触发元数据刷新（探测）
@@ -51,7 +51,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
     public string Name => "MediaInfo Bootstrap Task"; // 任务在 UI 中显示的名称
 
-    public string Key => "MediaInfoBootstrapTask"; // 任务的唯一键
+    public string Key => "EverMediaBootstrapTask"; // 任务的唯一键
 
     public string Description => "Scan and persist MediaInfo for .strm files."; // 任务描述
 
@@ -78,7 +78,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     // ✅ 修正 2: 参数顺序从 (IProgress, CancellationToken) 改为 (CancellationToken, IProgress)
     public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
     {
-        _logger.Info("[MediaInfoBootstrapTask] Task execution started.");
+        _logger.Info("[EverMediaBootstrapTask] Task execution started.");
 
         // 获取插件配置
         var config = Plugin.Instance.Configuration;
