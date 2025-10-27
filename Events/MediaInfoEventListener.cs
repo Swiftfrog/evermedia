@@ -35,41 +35,31 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
         ILogger logger,           // 用于记录事件处理日志
         EverMediaService evermediaService, // 用于执行备份和恢复逻辑
         IFileSystem fileSystem // 用于检查 .medinfo 文件
-        // IServerApplicationHost applicationHost // 不再需要注入
     )
     {
         _logger = logger;
         _everMediaService = evermediaService;
         _fileSystem = fileSystem;
-        // _applicationHost = applicationHost; // 不再赋值
     }
 
     // --- 事件处理方法：处理 ItemAdded 事件 ---
     public async void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
-        // 注意：ItemAdded 事件可能传递多种类型的 BaseItem
-        // 我们只关心 .strm 文件
         if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
         {
             _logger.Info($"[EverMediaEventListener] ItemAdded event triggered for .strm file: {item.Path}");
 
-            // V6 架构: 快速恢复逻辑
-            // 1. 检查是否存在 .medinfo 文件 (使用内部方法获取路径)
-            // string medInfoPath = GetMedInfoPath(item);
             string medInfoPath = _everMediaService.GetMedInfoPath(item);
             if (_fileSystem.FileExists(medInfoPath))
             {
                 _logger.Info($"[EverMediaEventListener] .medinfo file found for added item: {item.Path}. Attempting quick restore.");
-                // 2. 如果存在，调用 RestoreAsync
                 await _everMediaService.RestoreAsync(item);
             }
             else
             {
                 _logger.Debug($"[EverMediaEventListener] No .medinfo file found for added item: {item.Path}. Delegating to bootstrap task.");
-                // 3. 如果不存在，不执行任何操作（交给计划任务处理）
             }
         }
-        // 如果不是 .strm 文件，不做任何操作
     }
 
     // --- 事件处理方法：处理 ItemUpdated 事件 ---
@@ -79,13 +69,13 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
         {
             _logger.Debug($"[EverMediaEventListener] ItemUpdated event received for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count before debounce: {(item.MediaStreams?.Count ?? 0)}");
 
-            // --- 防抖逻辑 ---
             var itemId = item.Id;
             if (_debounceTokens.TryGetValue(itemId, out var existingCts))
             {
                 existingCts.Cancel();
                 existingCts.Dispose();
             }
+
             var newCts = new CancellationTokenSource();
             _debounceTokens[itemId] = newCts;
 
@@ -106,7 +96,6 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
 
             _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
 
-            // --- 获取流信息 ---
             var mediaStreams = item.GetMediaStreams();
             var hasVideoOrAudio = mediaStreams?.Any(s => s.Type == MediaStreamType.Video || s.Type == MediaStreamType.Audio) == true;
             var hasSubtitles = mediaStreams?.Any(s => s.Type == MediaStreamType.Subtitle) == true;
@@ -116,7 +105,7 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
 
             _logger.Debug($"[EverMediaEventListener] Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
 
-            // ✅ 新增逻辑：检测到“只有字幕”时，删除 .medinfo 文件
+            // ✅ 新增逻辑：检测到仅有字幕流（无音视频）且存在 .medinfo → 删除 .medinfo
             if (hasSubtitles && !hasVideoOrAudio && medInfoExists)
             {
                 _logger.Info($"[EverMediaEventListener] Detected subtitle-only update for {item.Path}. Deleting .medinfo to allow future backup with new streams.");
@@ -126,18 +115,18 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error($"[EverMediaEventListener] Failed to delete .medinfo file {medInfoPath}: {ex.Message}");
+                    _logger.Error($"[EverMediaEventListener] Failed to delete .medinfo file at {medInfoPath}: {ex.Message}");
                 }
-                // 注意：此处不 restore，也不 backup，仅删除 .medinfo
-                return;
+                return; // 不再执行恢复或备份
             }
 
-            // --- 原有自愈/备份逻辑 ---
+            // 原有逻辑：自愈
             if (!hasVideoOrAudio && medInfoExists)
             {
                 _logger.Info($"[EverMediaEventListener] Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
                 await _everMediaService.RestoreAsync(item);
             }
+            // 原有逻辑：机会性备份
             else if (hasVideoOrAudio && !medInfoExists)
             {
                 _logger.Info($"[EverMediaEventListener] Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
@@ -150,37 +139,9 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
         }
     }
 
-    // --- 辅助方法：检查项目是否拥有媒体信息 ---
-    // 参考 StrmAssistant 的 HasMediaInfo 实现
-    private bool HasMediaInfo(BaseItem item)
-    {
-        // 检查运行时间，这是媒体信息存在的一个强指标
-        if (!item.RunTimeTicks.HasValue)
-        {
-            _logger.Debug($"[EverMediaEventListener] Item {item.Path} has no RunTimeTicks.");
-            return false;
-        }
-
-        // 检查 GetMediaStreams() 的结果，寻找视频或音频流
-        var mediaStreams = item.GetMediaStreams(); // 调用方法主动获取
-        var hasVideoOrAudio = mediaStreams?.Any(i => i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio) ?? false;
-
-        if (!hasVideoOrAudio)
-        {
-            _logger.Debug($"[EverMediaEventListener] Item {item.Path} has RunTimeTicks but no Video or Audio streams via GetMediaStreams().");
-        }
-        else
-        {
-            _logger.Debug($"[EverMediaEventListener] Item {item.Path} has MediaInfo (RunTimeTicks and Video/Audio streams).");
-        }
-
-        return hasVideoOrAudio; // 可以根据需要决定是否包含 Size == 0 的检查
-    }
-
     // --- Cleanup ---
     public async ValueTask DisposeAsync()
     {
-        // Cancel any pending debounce timers
         foreach (var kvp in _debounceTokens)
         {
             kvp.Value.Cancel();
