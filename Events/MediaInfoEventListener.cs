@@ -94,7 +94,7 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
                 newCts.Dispose();
             }
 
-            _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
+            // _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
 
             var mediaStreams = item.GetMediaStreams();
             var hasVideoOrAudio = mediaStreams?.Any(s => s.Type == MediaStreamType.Video || s.Type == MediaStreamType.Audio) == true;
@@ -102,6 +102,8 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
 
             string medInfoPath = _everMediaService.GetMedInfoPath(item);
             bool medInfoExists = _fileSystem.FileExists(medInfoPath);
+            
+            _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
 
             _logger.Debug($"[EverMediaEventListener] Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
 
