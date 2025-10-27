@@ -15,13 +15,13 @@ public class ServerEntryPoint : IServerEntryPoint // ✅ 使用 IServerEntryPoin
 {
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger _logger;
-    private readonly MediaInfoEventListener _eventListener;
+    private readonly EverMediaEventListener _eventListener;
 
     // 构造函数：依赖注入 ILibraryManager, ILogger, 和 MediaInfoEventListener
     public ServerEntryPoint(
         ILibraryManager libraryManager,
         ILogger logger,
-        MediaInfoEventListener eventListener // Emby DI 会自动创建并注入这个实例及其依赖 (MediaInfoService, ILogger)
+        EverMediaEventListener eventListener // Emby DI 会自动创建并注入这个实例及其依赖 (MediaInfoService, ILogger)
     )
     {
         _libraryManager = libraryManager;
