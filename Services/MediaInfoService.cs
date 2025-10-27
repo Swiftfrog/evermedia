@@ -33,7 +33,6 @@ public class EverMediaService
     private readonly IFileSystem _fileSystem;
     private readonly IJsonSerializer _jsonSerializer;
     private readonly IServerApplicationHost _applicationHost;
-    // private readonly IMediaSourceManager _mediaSourceManager; // ✅ 不再需要注入 IMediaSourceManager
 
     // --- 构造函数：接收 Emby 框架注入的依赖项 ---
     public EverMediaService(
@@ -44,7 +43,6 @@ public class EverMediaService
         IFileSystem fileSystem,           // 用于文件系统操作
         IJsonSerializer jsonSerializer,   // 用于序列化/反序列化 JSON
         IServerApplicationHost applicationHost // 用于获取插件配置
-        // IMediaSourceManager mediaSourceManager // ✅ 不再注入 IMediaSourceManager
     )
     {
         // ✅ 使用 logManager 为这个服务类创建一个 logger 实例，日志前缀将是 "MediaInfoService"
@@ -55,7 +53,6 @@ public class EverMediaService
         _fileSystem = fileSystem;
         _jsonSerializer = jsonSerializer;
         _applicationHost = applicationHost;
-        // _mediaSourceManager = mediaSourceManager; // ✅ 不再保存 IMediaSourceManager
     }
 
     // --- 核心方法：备份 MediaInfo ---
