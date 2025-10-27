@@ -61,13 +61,13 @@ public class EverMediaService
     // --- 核心方法：备份 MediaInfo ---
     public async Task<bool> BackupAsync(BaseItem item)
     {
-        _logger.Info($"[EverMedia: MediaInfoService] Starting BackupAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+        _logger.Info($"[EverMediaService] Starting BackupAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
 
         // ✅ 在方法内部获取当前配置
         var config = GetConfiguration();
         if (config == null)
         {
-            _logger.Error("[EverMedia: MediaInfoService] Failed to get plugin configuration for BackupAsync.");
+            _logger.Error("[EverMediaService] Failed to get plugin configuration for BackupAsync.");
             return false; // 配置获取失败，返回 false
         }
 
@@ -77,7 +77,7 @@ public class EverMediaService
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
             if (libraryOptions == null)
             {
-                _logger.Error($"[EverMedia: MediaInfoService] Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
+                _logger.Error($"[EverMediaService] Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
                 return false; // 没有库选项，无法进行后续操作
             }
 
@@ -88,7 +88,7 @@ public class EverMediaService
 
             if (mediaSources == null || !mediaSources.Any())
             {
-                _logger.Info($"[EverMedia: MediaInfoService] No MediaSources found via GetMediaSources for item: {item.Path ?? item.Name}. Skipping backup.");
+                _logger.Info($"[EverMediaService] No MediaSources found via GetMediaSources for item: {item.Path ?? item.Name}. Skipping backup.");
                 return false; // 没有找到媒体源，无法备份
             }
 
@@ -116,7 +116,7 @@ public class EverMediaService
             var validSourcesWithChapters = mediaSourcesWithChapters.Where(swc => swc.MediaSourceInfo != null).ToList();
             if (!validSourcesWithChapters.Any())
             {
-                _logger.Warn($"[EverMedia: MediaInfoService] All MediaSourceInfo objects were null for item: {item.Path ?? item.Name}. Skipping backup.");
+                _logger.Warn($"[EverMediaService] All MediaSourceInfo objects were null for item: {item.Path ?? item.Name}. Skipping backup.");
                 return false;
             }
 
@@ -175,14 +175,14 @@ public class EverMediaService
             // IJsonSerializer 没有 SerializeToFileAsync，所以使用同步方法并用 Task.Run 避免阻塞
             await Task.Run(() => _jsonSerializer.SerializeToFile(backupData, medInfoPath));
 
-            _logger.Info($"[EverMedia: MediaInfoService] Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
+            _logger.Info($"[EverMediaService] Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
             return true;
 
 
         }
         catch (Exception ex)
         {
-            _logger.Error($"[EverMedia: MediaInfoService] Error during BackupAsync for item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Error($"[EverMediaService] Error during BackupAsync for item {item.Path ?? item.Name}: {ex.Message}");
             _logger.Debug(ex.StackTrace); // 记录详细堆栈
             return false; // 发生错误，返回 false
         }
@@ -378,7 +378,7 @@ public class EverMediaService
         // ✅ 修正：检查 item.Path 是否为 null
         if (string.IsNullOrEmpty(item.Path))
         {
-            _logger.Error($"[EverMedia: MediaInfoService] Item path is null or empty for item ID: {item.Id}. Cannot generate MedInfo path.");
+            _logger.Error($"[EverMediaService] Item path is null or empty for item ID: {item.Id}. Cannot generate MedInfo path.");
             // 返回一个默认路径或抛出异常，取决于你的处理策略
             // 这里我们返回一个基于 ID 的默认路径
             return Path.Combine(item.ContainingFolderPath, item.Id.ToString() + ".medinfo");
@@ -391,7 +391,7 @@ public class EverMediaService
         var config = GetConfiguration();
         if (config == null)
         {
-             _logger.Warn("[EverMedia: MediaInfoService] Failed to get plugin configuration for GetMedInfoPath, using default SideBySide mode.");
+             _logger.Warn("[EverMediaService] Failed to get plugin configuration for GetMedInfoPath, using default SideBySide mode.");
              // 如果配置获取失败，返回 SideBySide 模式下的路径作为默认值
              return Path.Combine(item.ContainingFolderPath, medInfoFileName);
         }
@@ -411,7 +411,7 @@ public class EverMediaService
             else if (relativePath.StartsWith(".."))
             {
                 // 如果相对路径向上跳出了 ContainingFolderPath，可能需要警告或特殊处理
-                _logger.Warn($"[EverMedia: MediaInfoService] Relative path calculation for centralized storage resulted in '{relativePath}' for item '{item.Path}'. Using SideBySide mode for this item.");
+                _logger.Warn($"[EverMediaService] Relative path calculation for centralized storage resulted in '{relativePath}' for item '{item.Path}'. Using SideBySide mode for this item.");
                  return Path.Combine(item.ContainingFolderPath, medInfoFileName);
             }
             return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
