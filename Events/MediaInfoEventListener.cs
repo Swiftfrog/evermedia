@@ -60,7 +60,7 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
             {
                 _logger.Info($"[EverMediaEventListener] .medinfo file found for added item: {item.Path}. Attempting quick restore.");
                 // 2. 如果存在，调用 RestoreAsync
-                await _mediaInfoService.RestoreAsync(item);
+                await _everMediaService.RestoreAsync(item);
             }
             else
             {
@@ -134,13 +134,13 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
             {
                 // 自愈逻辑: 数据库中没有 MediaInfo，但 .medinfo 文件存在
                 _logger.Info($"[EverMediaEventListener] Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
-                await _mediaInfoService.RestoreAsync(item);
+                await _everMediaService.RestoreAsync(item);
             }
             else if (hasMediaInfo && !medInfoExists)
             {
                 // 机会性备份逻辑: 数据库中有 MediaInfo，但 .medinfo 文件不存在
                 _logger.Info($"[EverMediaEventListener] Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
-                await _mediaInfoService.BackupAsync(item);
+                await _everMediaService.BackupAsync(item);
             }
             else
             {
