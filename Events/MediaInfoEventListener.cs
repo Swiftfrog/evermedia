@@ -75,43 +75,80 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
     // --- 事件处理方法：处理 ItemUpdated 事件 ---
     public async void OnItemUpdated(object? sender, ItemChangeEventArgs e)
     {
-        // 同样，只关心 .strm 文件
         if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
         {
-            // V6 架构: 自愈与备份逻辑 (带防抖和原因过滤)
-
-            // --- 添加调试日志 ---
             _logger.Debug($"[EverMediaEventListener] ItemUpdated event received for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count before debounce: {(item.MediaStreams?.Count ?? 0)}");
 
-            // 1. 事件防抖: 确保对同一 itemId 在 1 秒内最多处理一次
+            // --- 防抖逻辑 ---
             var itemId = item.Id;
             if (_debounceTokens.TryGetValue(itemId, out var existingCts))
             {
-                // 如果已有定时器，取消它
                 existingCts.Cancel();
-                existingCts.Dispose(); // 释放旧的 CTS
+                existingCts.Dispose();
             }
-
             var newCts = new CancellationTokenSource();
-            _debounceTokens[itemId] = newCts; // 存储新的 CTS
+            _debounceTokens[itemId] = newCts;
 
             try
             {
-                // 等待 1 秒，如果被取消则不执行后续逻辑
                 await Task.Delay(TimeSpan.FromSeconds(1), newCts.Token);
             }
             catch (OperationCanceledException)
             {
-                // 任务被取消，直接返回，不执行恢复或备份逻辑
                 _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce cancelled for item: {item.Path}");
                 return;
             }
             finally
             {
-                // 从字典中移除 CTS 并释放资源
                 _debounceTokens.TryRemove(itemId, out _);
                 newCts.Dispose();
             }
+
+            _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
+
+            // --- 获取流信息 ---
+            var mediaStreams = item.GetMediaStreams();
+            var hasVideoOrAudio = mediaStreams?.Any(s => s.Type == MediaStreamType.Video || s.Type == MediaStreamType.Audio) == true;
+            var hasSubtitles = mediaStreams?.Any(s => s.Type == MediaStreamType.Subtitle) == true;
+
+            string medInfoPath = _everMediaService.GetMedInfoPath(item);
+            bool medInfoExists = _fileSystem.FileExists(medInfoPath);
+
+            _logger.Debug($"[EverMediaEventListener] Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
+
+            // ✅ 新增逻辑：检测到“只有字幕”时，删除 .medinfo 文件
+            if (hasSubtitles && !hasVideoOrAudio && medInfoExists)
+            {
+                _logger.Info($"[EverMediaEventListener] Detected subtitle-only update for {item.Path}. Deleting .medinfo to allow future backup with new streams.");
+                try
+                {
+                    _fileSystem.DeleteFile(medInfoPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"[EverMediaEventListener] Failed to delete .medinfo file {medInfoPath}: {ex.Message}");
+                }
+                // 注意：此处不 restore，也不 backup，仅删除 .medinfo
+                return;
+            }
+
+            // --- 原有自愈/备份逻辑 ---
+            if (!hasVideoOrAudio && medInfoExists)
+            {
+                _logger.Info($"[EverMediaEventListener] Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
+                await _everMediaService.RestoreAsync(item);
+            }
+            else if (hasVideoOrAudio && !medInfoExists)
+            {
+                _logger.Info($"[EverMediaEventListener] Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
+                await _everMediaService.BackupAsync(item);
+            }
+            else
+            {
+                _logger.Debug($"[EverMediaEventListener] ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasVideoOrAudio: {hasVideoOrAudio}, MedInfoExists: {medInfoExists}");
+            }
+        }
+    }
 
             // --- 添加调试日志 ---
             _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
