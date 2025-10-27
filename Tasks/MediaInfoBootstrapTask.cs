@@ -20,7 +20,8 @@ namespace EverMedia.Tasks; // 使用命名空间组织代码
 /// 计划任务：扫描并持久化 .strm 文件的 MediaInfo。
 /// 这是主动维护者，负责初始化和持续维护。
 /// </summary>
-public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask 接口
+//public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask 接口
+public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask 接口
 {
     // --- 依赖注入的私有字段 ---
     private readonly ILogger _logger;
