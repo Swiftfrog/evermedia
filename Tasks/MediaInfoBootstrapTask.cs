@@ -49,7 +49,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
     // --- IScheduledTask 接口成员 ---
 
-    public string Name => "MediaInfo Bootstrap Task"; // 任务在 UI 中显示的名称
+    public string Name => "EverMedia Bootstrap Task"; // 任务在 UI 中显示的名称
 
     public string Key => "EverMediaBootstrapTask"; // 任务的唯一键
 
@@ -84,7 +84,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
         var config = Plugin.Instance.Configuration;
         if (config == null)
         {
-            _logger.Error("[MediaInfoBootstrapTask] Failed to get plugin configuration. Cannot proceed.");
+            _logger.Error("[EverMediaBootstrapTask] Failed to get plugin configuration. Cannot proceed.");
             return; // 配置获取失败，退出任务
         }
 
@@ -96,7 +96,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             // 1. 智能扫描：高效查询库中所有可能的 .strm 文件
             // 使用 MinDateLastSaved 实现增量更新
             var lastRunTimestamp = config.LastBootstrapTaskRun;
-            _logger.Info($"[MediaInfoBootstrapTask] Querying library for .strm files with metadata updated since {lastRunTimestamp?.ToString("O") ?? "the beginning of time"}...");
+            _logger.Info($"[EverMediaBootstrapTask] Querying library for .strm files with metadata updated since {lastRunTimestamp?.ToString("O") ?? "the beginning of time"}...");
 
             var query = new InternalItemsQuery
             {
@@ -118,13 +118,13 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             // 过滤出 Path 以 .strm 结尾的项目
             var strmItemsToProcess = allVideoItems.Where(item => item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase)).ToList();
 
-            _logger.Info($"[MediaInfoBootstrapTask] Found {strmItemsToProcess.Count} .strm files with metadata updated since last run to process.");
+            _logger.Info($"[EverMediaBootstrapTask] Found {strmItemsToProcess.Count} .strm files with metadata updated since last run to process.");
 
             // 计算总进度 (基于过滤后的列表)
             var totalItems = strmItemsToProcess.Count; // List<T> 使用 .Count 属性
             if (totalItems == 0)
             {
-                _logger.Info("[MediaInfoBootstrapTask] No .strm files found with updated metadata since last run. Task completed.");
+                _logger.Info("[EverMediaBootstrapTask] No .strm files found with updated metadata since last run. Task completed.");
                 progress?.Report(100); // 报告 100% 进度
                 return;
             }
@@ -142,13 +142,13 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             {
                 // 如果配置值 <= 0，则禁用速率限制
                 rateLimitInterval = TimeSpan.Zero;
-                _logger.Info("[MediaInfoBootstrapTask] Rate limiting is disabled (BootstrapTaskRateLimitSeconds <= 0).");
+                _logger.Info("[EverMediaBootstrapTask] Rate limiting is disabled (BootstrapTaskRateLimitSeconds <= 0).");
             }
             else
             {
                 // 否则，使用配置的秒数创建 TimeSpan
                 rateLimitInterval = TimeSpan.FromSeconds(configRateLimitSeconds);
-                _logger.Info($"[MediaInfoBootstrapTask] Rate limiting enabled: {rateLimitInterval.TotalSeconds} seconds interval between FFProbe calls.");
+                _logger.Info($"[EverMediaBootstrapTask] Rate limiting enabled: {rateLimitInterval.TotalSeconds} seconds interval between FFProbe calls.");
             }
 
             var lastProbeStart = DateTimeOffset.MinValue; // Track the time the last probe started
@@ -178,7 +178,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                 // 检查取消令牌
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    _logger.Info("[MediaInfoBootstrapTask] Task execution was cancelled during processing.");
+                    _logger.Info("[EverMediaBootstrapTask] Task execution was cancelled during processing.");
                     break; // 退出循环
                 }
 
@@ -200,7 +200,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                             var timeToWait = rateLimitInterval - timeElapsed;
                             if (timeToWait > TimeSpan.Zero)
                             {
-                                _logger.Debug($"[MediaInfoBootstrapTask] Waiting {timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
+                                _logger.Debug($"[EverMediaBootstrapTask] Waiting {timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
                                 await Task.Delay(timeToWait, cancellationToken); // 直接使用 TimeSpan
                             }
                             // Update the timestamp *after* the delay
@@ -213,36 +213,36 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         }
                         // --- End of Rate Limiting Logic ---
 
-                        _logger.Debug($"[MediaInfoBootstrapTask] Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
+                        _logger.Debug($"[EverMediaBootstrapTask] Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
 
                         // 检查是否存在 .medinfo 文件
                         string medInfoPath = _mediaInfoService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
 
                         if (System.IO.File.Exists(medInfoPath))
                         {
-                            _logger.Info($"[MediaInfoBootstrapTask] Found .medinfo file for {item.Path}. Attempting restore.");
+                            _logger.Info($"[EverMediaBootstrapTask] Found .medinfo file for {item.Path}. Attempting restore.");
                             // 存在 .medinfo 文件：尝试恢复 (自愈)
                             var restoreResult = await _mediaInfoService.RestoreAsync(item);
                             if (restoreResult)
                             {
                                 restoredCount++;
-                                _logger.Info($"[MediaInfoBootstrapTask] Successfully restored MediaInfo for {item.Path}.");
+                                _logger.Info($"[EverMediaBootstrapTask] Successfully restored MediaInfo for {item.Path}.");
                             }
                             else
                             {
-                                _logger.Warn($"[MediaInfoBootstrapTask] Failed to restore MediaInfo for {item.Path}.");
+                                _logger.Warn($"[EverMediaBootstrapTask] Failed to restore MediaInfo for {item.Path}.");
                             }
                         }
                         else
                         {
-                            _logger.Debug($"[MediaInfoBootstrapTask] No .medinfo file found for {item.Path}.");
+                            _logger.Debug($"[EverMediaBootstrapTask] No .medinfo file found for {item.Path}.");
                             // 不存在 .medinfo 文件：检查是否已有 MediaStreams
                             // 使用 item.GetMediaStreams() 来获取最新状态，参考 MediaInfoEventListener
                             bool hasMediaInfo = item.GetMediaStreams()?.Any(i => i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio) ?? false;
 
                             if (!hasMediaInfo)
                             {
-                                _logger.Info($"[MediaInfoBootstrapTask] No MediaInfo found for {item.Path} and no .medinfo file. Attempting probe.");
+                                _logger.Info($"[EverMediaBootstrapTask] No MediaInfo found for {item.Path} and no .medinfo file. Attempting probe.");
                                 // 没有 MediaStreams 且没有 .medinfo 文件：触发探测
                                 // 使用预先创建的 MetadataRefreshOptions 来触发探测
 
@@ -250,20 +250,20 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                                 await item.RefreshMetadata(refreshOptions, cancellationToken);
                                 // 探测成功后，ItemUpdated 事件会被触发，EventListener 会处理备份
                                 probedCount++;
-                                _logger.Info($"[MediaInfoBootstrapTask] Probe initiated for {item.Path}. Event listener will handle backup if successful.");
+                                _logger.Info($"[EverMediaBootstrapTask] Probe initiated for {item.Path}. Event listener will handle backup if successful.");
                             }
                             else
                             {
                                 // 有 MediaStreams 但没有 .medinfo 文件：可能是一个新添加的、有信息但未备份的项目
                                 // 计划任务不直接处理这种情况，EventListener 会处理
-                                _logger.Debug($"[MediaInfoBootstrapTask] MediaInfo exists for {item.Path} but no .medinfo file. Event listener may handle backup.");
+                                _logger.Debug($"[EverMediaBootstrapTask] MediaInfo exists for {item.Path} but no .medinfo file. Event listener may handle backup.");
                                 skippedCount++;
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error($"[MediaInfoBootstrapTask] Error processing item {item.Path}: {ex.Message}");
+                        _logger.Error($"[EverMediaBootstrapTask] Error processing item {item.Path}: {ex.Message}");
                         _logger.Debug(ex.StackTrace); // 记录详细堆栈
                     }
                     finally
@@ -286,22 +286,22 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
             // 优化日志输出
             var totalProcessed = restoredCount + probedCount + skippedCount;
-            _logger.Info($"[MediaInfoBootstrapTask] Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new meta {probedCount}, Skipped (already has metadata): {skippedCount}.");
+            _logger.Info($"[EverMediaBootstrapTask] Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new meta {probedCount}, Skipped (already has metadata): {skippedCount}.");
 
             // ✅ 修正：在任务成功完成后，记录当前时间作为下一次运行的基准
             // 原来的错误代码：
             // Plugin.Instance.UpdateLastBootstrapTaskRun(taskStartTime);
-            // _logger.Info($"[MediaInfoBootstrapTask] Last run timestamp updated to {taskStartTime:O} via Plugin.Instance.");
+            // _logger.Info($"[EverMediaBootstrapTask] Last run timestamp updated to {taskStartTime:O} via Plugin.Instance.");
 
             var taskCompletionTime = DateTime.UtcNow; // 记录任务完成时间
             Plugin.Instance.UpdateLastBootstrapTaskRun(taskCompletionTime); // 使用完成时间更新配置
-            _logger.Info($"[MediaInfoBootstrapTask] Last run timestamp updated to task completion time: {taskCompletionTime:O} via Plugin.Instance.");
+            _logger.Info($"[EverMediaBootstrapTask] Last run timestamp updated to task completion time: {taskCompletionTime:O} via Plugin.Instance.");
 
         }
         catch (OperationCanceledException)
         {
             // 任务被取消
-            _logger.Info("[MediaInfoBootstrapTask] Task execution was cancelled.");
+            _logger.Info("[EverMediaBootstrapTask] Task execution was cancelled.");
             // 注意：如果任务被取消，可能不应该更新 LastBootstrapTaskRun 时间戳，
             // 因为任务并未成功完成。这取决于你希望如何定义“上次成功运行时间”。
             // 当前逻辑在取消时不会执行到更新时间戳的部分。
@@ -310,7 +310,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
         catch (Exception ex)
         {
             // 任务执行出错
-            _logger.Error($"[MediaInfoBootstrapTask] Task execution failed: {ex.Message}");
+            _logger.Error($"[EverMediaBootstrapTask] Task execution failed: {ex.Message}");
             _logger.Debug(ex.StackTrace); // 可选：记录详细堆栈
             // 注意：如果任务执行失败，通常也不应该更新 LastBootstrapTaskRun 时间戳。
             // 当前逻辑在异常时会抛出，不会执行到更新时间戳的部分。
