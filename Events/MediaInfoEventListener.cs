@@ -150,46 +150,6 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
         }
     }
 
-            // --- 添加调试日志 ---
-            _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
-
-            // 2. 更新原因过滤: 忽略播放开始/结束等事件
-            // ItemChangeEventArgs 本身不直接包含原因，但可以通过其他方式推断或检查项目状态
-            // 这里我们主要依赖于状态检查 (HasMediaInfo) 来区分是恢复还是备份
-            // 播放事件通常不会改变 HasMediaInfo，所以这个检查本身就有一定的过滤作用
-            // 如果需要更精确的过滤，可能需要更深入的 Emby 内部机制，暂时按状态检查
-
-            // 3. 逻辑判断
-            // string medInfoPath = GetMedInfoPath(item); // 使用内部方法获取路径
-            string medInfoPath = _everMediaService.GetMedInfoPath(item);
-            // --- 修正：使用新的 HasMediaInfo 方法 ---
-            bool hasMediaInfo = HasMediaInfo(item);
-            bool medInfoExists = _fileSystem.FileExists(medInfoPath);
-
-            // --- 添加调试日志 ---
-            _logger.Debug($"[EverMediaEventListener] Checking criteria for {item.Path}. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
-
-            if (!hasMediaInfo && medInfoExists)
-            {
-                // 自愈逻辑: 数据库中没有 MediaInfo，但 .medinfo 文件存在
-                _logger.Info($"[EverMediaEventListener] Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
-                await _everMediaService.RestoreAsync(item);
-            }
-            else if (hasMediaInfo && !medInfoExists)
-            {
-                // 机会性备份逻辑: 数据库中有 MediaInfo，但 .medinfo 文件不存在
-                _logger.Info($"[EverMediaEventListener] Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
-                await _everMediaService.BackupAsync(item);
-            }
-            else
-            {
-                // 其他情况：例如，都有或都无，或者更新与 MediaInfo 无关
-                _logger.Debug($"[EverMediaEventListener] ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
-            }
-        }
-        // 如果不是 .strm 文件，不做任何操作
-    }
-
     // --- 辅助方法：检查项目是否拥有媒体信息 ---
     // 参考 StrmAssistant 的 HasMediaInfo 实现
     private bool HasMediaInfo(BaseItem item)
