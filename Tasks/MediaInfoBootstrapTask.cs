@@ -291,7 +291,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
 
             // ✅ 修正：在任务成功完成后，记录一个稍晚于当前时间的时间戳作为下一次运行的基准
             // ✅ 方案：硬编码增加 1 毫秒偏移量，确保下一次查询起点晚于本次任务结束时间
-            var taskCompletionTime = DateTime.UtcNow.AddMilliseconds(1); // 记录并增加偏移
+            var taskCompletionTime = DateTime.UtcNow.AddSeconds(1); // 记录并增加偏移
             Plugin.Instance.UpdateLastBootstrapTaskRun(taskCompletionTime); // 使用增加偏移后的时间更新配置
             // var taskCompletionTime = DateTime.UtcNow; // 记录任务完成时间,执行效率很高的话，任务的最后一个项目的时间和记任务完成时间一样。那么最后一个任务会再二次任务时被跟更新。
             _logger.Info($"[EverMediaBootstrapTask] Last run timestamp updated to task completion time: {taskCompletionTime:O} via Plugin.Instance.");
