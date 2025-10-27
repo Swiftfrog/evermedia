@@ -19,28 +19,27 @@ namespace EverMedia.Events; // 使用命名空间组织代码
 /// 事件监听器：负责监听 Emby 的 ItemAdded 和 ItemUpdated 事件，
 /// 并触发相应的 MediaInfoService 逻辑。
 /// </summary>
-public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDisposable for proper cleanup of timers
+public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDisposable for proper cleanup of timers
 {
     // --- 依赖注入的私有字段 ---
     private readonly ILogger _logger;
-    private readonly MediaInfoService _mediaInfoService;
+    private readonly EverMediaService _everMediaService;
     private readonly IFileSystem _fileSystem; // 需要 IFileSystem 来检查 .medinfo 文件是否存在
-    // private readonly IServerApplicationHost _applicationHost; // 不再注入此服务
 
     // --- 事件防抖相关 ---
     // 使用 ConcurrentDictionary 存储每个 Item 的 CancellationTokenSource
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _debounceTokens = new();
 
     // --- 构造函数：接收依赖项 ---
-    public MediaInfoEventListener(
+    public EverMediaEventListener(
         ILogger logger,           // 用于记录事件处理日志
-        MediaInfoService mediaInfoService, // 用于执行备份和恢复逻辑
+        EverMediaService evermediaService, // 用于执行备份和恢复逻辑
         IFileSystem fileSystem // 用于检查 .medinfo 文件
         // IServerApplicationHost applicationHost // 不再需要注入
     )
     {
         _logger = logger;
-        _mediaInfoService = mediaInfoService;
+        _everMediaService = evermediaService;
         _fileSystem = fileSystem;
         // _applicationHost = applicationHost; // 不再赋值
     }
@@ -52,20 +51,20 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
         // 我们只关心 .strm 文件
         if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.Info($"[EverMedia:MediaInfoEventListener] ItemAdded event triggered for .strm file: {item.Path}");
+            _logger.Info($"[EverMediaEventListener] ItemAdded event triggered for .strm file: {item.Path}");
 
             // V6 架构: 快速恢复逻辑
             // 1. 检查是否存在 .medinfo 文件 (使用内部方法获取路径)
             string medInfoPath = GetMedInfoPath(item);
             if (_fileSystem.FileExists(medInfoPath))
             {
-                _logger.Info($"[EverMedia:MediaInfoEventListener] .medinfo file found for added item: {item.Path}. Attempting quick restore.");
+                _logger.Info($"[EverMediaEventListener] .medinfo file found for added item: {item.Path}. Attempting quick restore.");
                 // 2. 如果存在，调用 RestoreAsync
                 await _mediaInfoService.RestoreAsync(item);
             }
             else
             {
-                _logger.Debug($"[EverMedia:MediaInfoEventListener] No .medinfo file found for added item: {item.Path}. Delegating to bootstrap task.");
+                _logger.Debug($"[EverMediaEventListener] No .medinfo file found for added item: {item.Path}. Delegating to bootstrap task.");
                 // 3. 如果不存在，不执行任何操作（交给计划任务处理）
             }
         }
@@ -81,7 +80,7 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
             // V6 架构: 自愈与备份逻辑 (带防抖和原因过滤)
 
             // --- 添加调试日志 ---
-            _logger.Debug($"[EverMedia:MediaInfoEventListener] ItemUpdated event received for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count before debounce: {(item.MediaStreams?.Count ?? 0)}");
+            _logger.Debug($"[EverMediaEventListener] ItemUpdated event received for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count before debounce: {(item.MediaStreams?.Count ?? 0)}");
 
             // 1. 事件防抖: 确保对同一 itemId 在 1 秒内最多处理一次
             var itemId = item.Id;
@@ -103,7 +102,7 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
             catch (OperationCanceledException)
             {
                 // 任务被取消，直接返回，不执行恢复或备份逻辑
-                _logger.Debug($"[EverMedia:MediaInfoEventListener] ItemUpdated debounce cancelled for item: {item.Path}");
+                _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce cancelled for item: {item.Path}");
                 return;
             }
             finally
@@ -114,7 +113,7 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
             }
 
             // --- 添加调试日志 ---
-            _logger.Debug($"[EverMedia:MediaInfoEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
+            _logger.Debug($"[EverMediaEventListener] ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
 
             // 2. 更新原因过滤: 忽略播放开始/结束等事件
             // ItemChangeEventArgs 本身不直接包含原因，但可以通过其他方式推断或检查项目状态
@@ -129,24 +128,24 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
             bool medInfoExists = _fileSystem.FileExists(medInfoPath);
 
             // --- 添加调试日志 ---
-            _logger.Debug($"[EverMedia:MediaInfoEventListener] Checking criteria for {item.Path}. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
+            _logger.Debug($"[EverMediaEventListener] Checking criteria for {item.Path}. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
 
             if (!hasMediaInfo && medInfoExists)
             {
                 // 自愈逻辑: 数据库中没有 MediaInfo，但 .medinfo 文件存在
-                _logger.Info($"[EverMedia:MediaInfoEventListener] Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
+                _logger.Info($"[EverMediaEventListener] Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
                 await _mediaInfoService.RestoreAsync(item);
             }
             else if (hasMediaInfo && !medInfoExists)
             {
                 // 机会性备份逻辑: 数据库中有 MediaInfo，但 .medinfo 文件不存在
-                _logger.Info($"[EverMedia:MediaInfoEventListener] Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
+                _logger.Info($"[EverMediaEventListener] Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
                 await _mediaInfoService.BackupAsync(item);
             }
             else
             {
                 // 其他情况：例如，都有或都无，或者更新与 MediaInfo 无关
-                _logger.Debug($"[EverMedia:MediaInfoEventListener] ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
+                _logger.Debug($"[EverMediaEventListener] ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
             }
         }
         // 如果不是 .strm 文件，不做任何操作
@@ -159,7 +158,7 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
         // 检查运行时间，这是媒体信息存在的一个强指标
         if (!item.RunTimeTicks.HasValue)
         {
-            _logger.Debug($"[EverMedia:MediaInfoEventListener] Item {item.Path} has no RunTimeTicks.");
+            _logger.Debug($"[EverMediaEventListener] Item {item.Path} has no RunTimeTicks.");
             return false;
         }
 
@@ -169,11 +168,11 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
 
         if (!hasVideoOrAudio)
         {
-            _logger.Debug($"[EverMedia:MediaInfoEventListener] Item {item.Path} has RunTimeTicks but no Video or Audio streams via GetMediaStreams().");
+            _logger.Debug($"[EverMediaEventListener] Item {item.Path} has RunTimeTicks but no Video or Audio streams via GetMediaStreams().");
         }
         else
         {
-            _logger.Debug($"[EverMedia:MediaInfoEventListener] Item {item.Path} has MediaInfo (RunTimeTicks and Video/Audio streams).");
+            _logger.Debug($"[EverMediaEventListener] Item {item.Path} has MediaInfo (RunTimeTicks and Video/Audio streams).");
         }
 
         return hasVideoOrAudio; // 可以根据需要决定是否包含 Size == 0 的检查
@@ -195,7 +194,7 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
         // ✅ 修正：检查 item.Path 是否为 null
         if (string.IsNullOrEmpty(item.Path))
         {
-            _logger.Error($"[EverMedia:MediaInfoEventListener] Item path is null or empty for item ID: {item.Id}. Cannot generate MedInfo path.");
+            _logger.Error($"[EverMediaEventListener] Item path is null or empty for item ID: {item.Id}. Cannot generate MedInfo path.");
             // 返回一个默认路径或抛出异常，取决于你的处理策略
             // 这里我们返回一个基于 ID 的默认路径
             return Path.Combine(item.ContainingFolderPath, item.Id.ToString() + ".medinfo");
@@ -208,7 +207,7 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
         var config = GetConfiguration();
         if (config == null)
         {
-             _logger.Warn("[EverMedia:MediaInfoEventListener] Failed to get plugin configuration for GetMedInfoPath, using default SideBySide mode.");
+             _logger.Warn("[EverMediaEventListener] Failed to get plugin configuration for GetMedInfoPath, using default SideBySide mode.");
              // 如果配置获取失败，返回 SideBySide 模式下的路径作为默认值
              return Path.Combine(item.ContainingFolderPath, medInfoFileName);
         }
@@ -228,7 +227,7 @@ public class MediaInfoEventListener : IAsyncDisposable // Implement IAsyncDispos
             else if (relativePath.StartsWith(".."))
             {
                 // 如果相对路径向上跳出了 ContainingFolderPath，可能需要警告或特殊处理
-                _logger.Warn($"[EverMedia:MediaInfoEventListener] Relative path calculation for centralized storage resulted in '{relativePath}' for item '{item.Path}'. Using SideBySide mode for this item.");
+                _logger.Warn($"[EverMediaEventListener] Relative path calculation for centralized storage resulted in '{relativePath}' for item '{item.Path}'. Using SideBySide mode for this item.");
                  return Path.Combine(item.ContainingFolderPath, medInfoFileName);
             }
             return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
