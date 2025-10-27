@@ -27,7 +27,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     private readonly ILogger _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly IProviderManager _providerManager;
-    private readonly MediaInfoService _mediaInfoService;
+    private readonly EverMediaService _everMediaService;
     private readonly IFileSystem _fileSystem; // 注入 IFileSystem
 
     // --- 构造函数：接收依赖项 ---
@@ -35,7 +35,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
         ILogManager logManager,           // 请求日志管理器工厂
         ILibraryManager libraryManager,   // 用于查询媒体库项目
         IProviderManager providerManager, // 用于触发元数据刷新（探测）
-        MediaInfoService mediaInfoService, // 用于执行备份和恢复逻辑
+        EverMediaService everMediaService, // 用于执行备份和恢复逻辑
         IFileSystem fileSystem           // 用于 MetadataRefreshOptions
     )
     {
@@ -43,7 +43,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
         _logger = logManager.GetLogger(GetType().Name);
         _libraryManager = libraryManager;
         _providerManager = providerManager;
-        _mediaInfoService = mediaInfoService;
+        _everMediaService = everMediaService;
         _fileSystem = fileSystem; // 保存注入的 IFileSystem
     }
 
