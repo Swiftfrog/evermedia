@@ -445,10 +445,10 @@ public class EverMediaService
             ////}
             ////return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
         ////}
-        ////else
-        ////{
-        ////    // 默认：SideBySide 模式，.medinfo 文件与 .strm 文件同目录
-        ////    return Path.Combine(item.ContainingFolderPath, medInfoFileName);
+        else
+        {
+            // 默认：SideBySide 模式，.medinfo 文件与 .strm 文件同目录
+            return Path.Combine(item.ContainingFolderPath, medInfoFileName);
         }
     }
 
