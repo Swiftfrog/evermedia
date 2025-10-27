@@ -421,16 +421,14 @@ public class EverMediaService
                     relativePath = string.Empty; // 如果文件就在根目录
                 }
 
-            // 3. 组合中心化路径
-            return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
-        }
-        else
-        {
-            // 默认或回退到 SideBySide 模式
-            return Path.Combine(item.ContainingFolderPath, medInfoFileName);
-        }
-
-
+                // 3. 组合中心化路径
+                return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
+            }
+            else
+           {
+                // 默认或回退到 SideBySide 模式
+                return Path.Combine(item.ContainingFolderPath, medInfoFileName);
+            }
 
             ////string itemDir = Path.GetDirectoryName(item.Path) ?? item.ContainingFolderPath;
             ////string relativePath = Path.GetRelativePath(item.ContainingFolderPath, itemDir);
@@ -451,7 +449,7 @@ public class EverMediaService
         ////{
         ////    // 默认：SideBySide 模式，.medinfo 文件与 .strm 文件同目录
         ////    return Path.Combine(item.ContainingFolderPath, medInfoFileName);
-        ////}
+        }
     }
 
     // --- 内部类：用于序列化/反序列化的数据结构 (借鉴 StrmAssistant) ---
