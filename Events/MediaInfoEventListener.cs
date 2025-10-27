@@ -180,60 +180,6 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
         return hasVideoOrAudio; // 可以根据需要决定是否包含 Size == 0 的检查
     }
 
-
-    // --- 辅助方法：生成 .medinfo 文件路径 ---
-    // ✅ 直接复制并修改自 MediaInfoService.cs 的 GetMedInfoPath 方法，使用 Plugin.Instance 获取配置
-    private string GetMedInfoPath(BaseItem item)
-    {
-        // ✅ 修正：检查 item.Path 是否为 null
-        if (string.IsNullOrEmpty(item.Path))
-        {
-            _logger.Error($"[EverMediaEventListener] Item path is null or empty for item ID: {item.Id}. Cannot generate MedInfo path.");
-            // 返回一个默认路径或抛出异常，取决于你的处理策略
-            // 这里我们返回一个基于 ID 的默认路径
-            return Path.Combine(item.ContainingFolderPath, item.Id.ToString() + ".medinfo");
-        }
-
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(item.Path);
-        string medInfoFileName = fileNameWithoutExtension + ".medinfo";
-
-        // ✅ 在方法内部获取当前配置 (调用内部的 GetConfiguration 方法，该方法使用 Plugin.Instance)
-        var config = GetConfiguration();
-        if (config == null)
-        {
-             _logger.Warn("[EverMediaEventListener] Failed to get plugin configuration for GetMedInfoPath, using default SideBySide mode.");
-             // 如果配置获取失败，返回 SideBySide 模式下的路径作为默认值
-             return Path.Combine(item.ContainingFolderPath, medInfoFileName);
-        }
-
-        // 使用配置
-        if (config.BackupMode == BackupMode.Centralized && !string.IsNullOrEmpty(config.CentralizedRootPath))
-        {
-            // 如果是中心化模式且路径有效，则构建中心化路径
-            // 注意：GetRelativePath 可能需要处理不同的根目录情况
-            string itemDir = Path.GetDirectoryName(item.Path) ?? item.ContainingFolderPath;
-            string relativePath = Path.GetRelativePath(item.ContainingFolderPath, itemDir);
-            // GetRelativePath 可能返回 "." 或 ".." 或包含 ".." 的路径，需要处理
-            if (relativePath == ".")
-            {
-                relativePath = string.Empty; // 表示与 ContainingFolderPath 相同
-            }
-            else if (relativePath.StartsWith(".."))
-            {
-                // 如果相对路径向上跳出了 ContainingFolderPath，可能需要警告或特殊处理
-                _logger.Warn($"[EverMediaEventListener] Relative path calculation for centralized storage resulted in '{relativePath}' for item '{item.Path}'. Using SideBySide mode for this item.");
-                 return Path.Combine(item.ContainingFolderPath, medInfoFileName);
-            }
-            return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
-        }
-        else
-        {
-            // 默认：SideBySide 模式，.medinfo 文件与 .strm 文件同目录
-            return Path.Combine(item.ContainingFolderPath, medInfoFileName);
-        }
-    }
-
-
     // --- Cleanup ---
     public async ValueTask DisposeAsync()
     {
