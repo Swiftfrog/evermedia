@@ -14,6 +14,7 @@ using System.IO; // For Path operations
 using System.Linq; // For OfType
 using System.Threading.Tasks; // For async/await
 using System.Collections.Generic; // For List
+using System; // For DateTimeOffset
 
 // --- 仍然需要导入 PluginConfiguration 的命名空间 ---
 using EverMedia.Configuration;
@@ -30,7 +31,7 @@ public class EverMediaService
     private readonly ILibraryManager _libraryManager;
     private readonly IItemRepository _itemRepository;
     private readonly IProviderManager _providerManager;
-    private readonly IFileSystem _fileSystem;
+    private readonly IFileSystem _fileSystem; // ✅ 保留 IFileSystem 用于文件操作
     private readonly IJsonSerializer _jsonSerializer;
     private readonly IServerApplicationHost _applicationHost;
     // private readonly IMediaSourceManager _mediaSourceManager; // ✅ 不再需要注入 IMediaSourceManager
@@ -41,7 +42,7 @@ public class EverMediaService
         ILibraryManager libraryManager,   // 用于管理媒体库项目
         IItemRepository itemRepository,   // 用于直接操作数据库中的项目数据（如保存媒体流）
         IProviderManager providerManager, // 用于触发元数据刷新等
-        IFileSystem fileSystem,           // 用于文件系统操作
+        IFileSystem fileSystem,           // 用于文件系统操作 ✅
         IJsonSerializer jsonSerializer,   // 用于序列化/反序列化 JSON
         IServerApplicationHost applicationHost // 用于获取插件配置
         // IMediaSourceManager mediaSourceManager // ✅ 不再注入 IMediaSourceManager
@@ -52,7 +53,7 @@ public class EverMediaService
         _libraryManager = libraryManager;
         _itemRepository = itemRepository;
         _providerManager = providerManager;
-        _fileSystem = fileSystem;
+        _fileSystem = fileSystem; // ✅ 保存 IFileSystem 实例
         _jsonSerializer = jsonSerializer;
         _applicationHost = applicationHost;
         // _mediaSourceManager = mediaSourceManager; // ✅ 不再保存 IMediaSourceManager
@@ -373,6 +374,7 @@ public class EverMediaService
     }
 
     // --- 辅助方法：生成 .medinfo 文件路径 ---
+    // ✅ 这个公共方法现在可以被 EverMediaEventListener.cs 调用
     public string GetMedInfoPath(BaseItem item)
     {
         // ✅ 修正：检查 item.Path 是否为 null
@@ -401,44 +403,64 @@ public class EverMediaService
         {
             // 如果是中心化模式且路径有效，则构建中心化路径
             // 注意：GetRelativePath 可能需要处理不同的根目录情况
-            
-            // 1. 获取该项目所属的媒体库的根路径
-            var libraryOptions = _libraryManager.GetLibraryOptions(item);
-            // (假设一个媒体库只有一个物理根路径；如果
-            //  有多个，您可能需要查找匹配的那一个)
-            var libraryRootPath = libraryOptions?.PathInfos.FirstOrDefault()?.Path;
-
-            if (config.BackupMode == BackupMode.Centralized && 
-                !string.IsNullOrEmpty(config.CentralizedRootPath) && 
-                !string.IsNullOrEmpty(libraryRootPath) &&
-                item.ContainingFolderPath.StartsWith(libraryRootPath)) // 确保路径有效
+            string itemDir = Path.GetDirectoryName(item.Path) ?? item.ContainingFolderPath;
+            string relativePath = Path.GetRelativePath(item.ContainingFolderPath, itemDir);
+            // GetRelativePath 可能返回 "." 或 ".." 或包含 ".." 的路径，需要处理
+            if (relativePath == ".")
             {
-                // 2. 计算 item 目录相对于 媒体库根目录 的相对路径
-                string relativePath = Path.GetRelativePath(libraryRootPath, item.ContainingFolderPath);
-
-                if (relativePath == ".")
-                {
-                    relativePath = string.Empty; // 如果文件就在根目录
-                }
-
-                // 3. 组合中心化路径
-                return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
+                relativePath = string.Empty; // 表示与 ContainingFolderPath 相同
             }
-            else
-           {
-                // 默认或回退到 SideBySide 模式
-                return Path.Combine(item.ContainingFolderPath, medInfoFileName);
+            else if (relativePath.StartsWith(".."))
+            {
+                // 如果相对路径向上跳出了 ContainingFolderPath，可能需要警告或特殊处理
+                _logger.Warn($"[EverMediaService] Relative path calculation for centralized storage resulted in '{relativePath}' for item '{item.Path}'. Using SideBySide mode for this item.");
+                 return Path.Combine(item.ContainingFolderPath, medInfoFileName);
             }
+            return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
         }
-        // ***********************************************
-        // * 下面的 ELSE 块是为修复 CS0161 错误而取消注释的 *
-        // ***********************************************
         else
         {
             // 默认：SideBySide 模式，.medinfo 文件与 .strm 文件同目录
             return Path.Combine(item.ContainingFolderPath, medInfoFileName);
         }
     }
+
+    // **********************************************************************
+    // *                      新增的辅助方法                              *
+    // **********************************************************************
+
+    // --- 新增辅助方法：获取 .medinfo 文件的最后写入时间 (UTC) ---
+    /// <summary>
+    /// 获取与指定 BaseItem 关联的 .medinfo 文件的最后写入时间 (UTC)。
+    /// 如果文件不存在或发生错误，则返回 DateTimeOffset.MinValue。
+    /// </summary>
+    /// <param name="item">要获取其 .medinfo 文件时间戳的 BaseItem。</param>
+    /// <returns>.medinfo 文件的最后写入时间 (DateTimeOffset)，如果文件不存在则返回 DateTimeOffset.MinValue。</returns>
+    public DateTimeOffset GetMedInfoFileWriteTime(BaseItem item)
+    {
+        try
+        {
+            string medInfoPath = GetMedInfoPath(item); // 使用现有的公共方法获取路径
+            if (_fileSystem.FileExists(medInfoPath)) // 使用注入的 IFileSystem 检查文件是否存在
+            {
+                // 使用注入的 IFileSystem 获取最后写入时间 (UTC)
+                return _fileSystem.GetLastWriteTimeUtc(medInfoPath);
+            }
+            else
+            {
+                _logger.Debug($"[EverMediaService] .medinfo file does not exist at path: {medInfoPath}. Returning MinValue for write time.");
+                return DateTimeOffset.MinValue; // 文件不存在，返回最小值
+            }
+        }
+        catch (Exception ex)
+        {
+            // 捕获可能的 IO 异常（如权限问题）
+            _logger.Error($"[EverMediaService] Error getting last write time for .medinfo file associated with item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Debug(ex.StackTrace);
+            return DateTimeOffset.MinValue; // 发生错误，返回最小值
+        }
+    }
+
 
     // --- 内部类：用于序列化/反序列化的数据结构 (借鉴 StrmAssistant) ---
     internal class MediaSourceWithChapters

@@ -12,6 +12,7 @@ using MediaBrowser.Model.IO; // 引入 IFileSystem
 using System.Linq; // For OfType
 using System.IO; // For Path
 using MediaBrowser.Model.Entities; // For MediaStreamType
+using System.Runtime.InteropServices.ComTypes; // For FILETIME if needed, but likely not
 
 namespace EverMedia.Events; // 使用命名空间组织代码
 
@@ -25,6 +26,7 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
     private readonly ILogger _logger;
     private readonly EverMediaService _everMediaService;
     private readonly IFileSystem _fileSystem; // 需要 IFileSystem 来检查 .medinfo 文件是否存在
+    // private readonly IServerApplicationHost _applicationHost; // 不再注入此服务
 
     // --- 事件防抖相关 ---
     // 使用 ConcurrentDictionary 存储每个 Item 的 CancellationTokenSource
@@ -55,10 +57,7 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
 
             // V6 架构: 快速恢复逻辑
             // 1. 检查是否存在 .medinfo 文件 (使用 Service 获取路径)
-            // ***********************************************
-            // * 已修改: 调用 _everMediaService.GetMedInfoPath *
-            // ***********************************************
-            string medInfoPath = _everMediaService.GetMedInfoPath(item);
+            string medInfoPath = _everMediaService.GetMedInfoPath(item); // ✅ 调用 Service 方法
             if (_fileSystem.FileExists(medInfoPath))
             {
                 _logger.Info($"[EverMediaEventListener] .medinfo file found for added item: {item.Path}. Attempting quick restore.");
@@ -124,34 +123,93 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
             // 播放事件通常不会改变 HasMediaInfo，所以这个检查本身就有一定的过滤作用
             // 如果需要更精确的过滤，可能需要更深入的 Emby 内部机制，暂时按状态检查
 
-            // 3. 逻辑判断
-            // ***********************************************
-            // * 已修改: 调用 _everMediaService.GetMedInfoPath *
-            // ***********************************************
-            string medInfoPath = _everMediaService.GetMedInfoPath(item); // 使用 Service 获取路径
-            // --- 修正：使用新的 HasMediaInfo 方法 ---
-            bool hasMediaInfo = HasMediaInfo(item);
-            bool medInfoExists = _fileSystem.FileExists(medInfoPath);
+            // 3. 逻辑判断 (基于四种状态组合和精细化处理)
+            string medInfoPath = _everMediaService.GetMedInfoPath(item); // ✅ 调用 Service 方法获取路径
+            bool hasMediaInfo = HasMediaInfo(item); // 检查项目当前是否有 MediaInfo
+            bool medInfoExists = _fileSystem.FileExists(medInfoPath); // 检查 .medinfo 文件是否存在
 
             // --- 添加调试日志 ---
-            _logger.Debug($"[EverMediaEventListener] Checking criteria for {item.Path}. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
+            _logger.Debug($"[EverMediaEventListener] Evaluating state for {item.Path}. HasMediaInfo: {hasMediaInfo}, MedInfoExists: {medInfoExists}");
+
+            // *********************************************************************************
+            // *                             状态机逻辑实现                                   *
+            // *********************************************************************************
 
             if (!hasMediaInfo && medInfoExists)
             {
-                // 自愈逻辑: 数据库中没有 MediaInfo，但 .medinfo 文件存在
-                _logger.Info($"[EverMediaEventListener] Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
+                // **************************************************
+                // * 状态 (False, True) - (!hasMediaInfo && medInfoExists) *
+                // * 含义: 数据库无 MediaInfo, 但 .medinfo 文件存在     *
+                // * 原因 A: 刚探测完，信息被清除 (应恢复)              *
+                // * 原因 B: 探测失败，信息被清除 (应恢复)              *
+                // * 原因 C: 项目元数据更新但未探测 (罕见，也应恢复)      *
+                // * 解决方案 (当前): 触发恢复 (RestoreAsync)          *
+                // * (未来可加入状态记忆逻辑来区分 A/B/C)               *
+                // **************************************************
+                _logger.Info($"[EverMediaEventListener] State (False, True) for {item.Path}. Database lacks MediaInfo, .medinfo exists. Attempting restore.");
                 await _everMediaService.RestoreAsync(item);
+            }
+            else if (hasMediaInfo && medInfoExists)
+            {
+                // **************************************************
+                // * 状态 (True, True) - (hasMediaInfo && medInfoExists) *
+                // * 含义: 数据库有 MediaInfo, 且 .medinfo 文件存在     *
+                // * 原因 A: 刚探测成功 (数据库新)                     *
+                // * 原因 B: 从 .medinfo 恢复过 (数据库旧或一致)         *
+                // * 解决方案: 比较时间戳                               *
+                // **************************************************
+                _logger.Debug($"[EverMediaEventListener] State (True, True) for {item.Path}. Comparing timestamps...");
+
+                // 获取数据库项目最后保存时间
+                DateTimeOffset? itemDateLastSaved = item.DateLastSaved;
+
+                // 获取 .medinfo 文件最后修改时间
+                // 使用 IFileSystem 获取时间戳
+                DateTimeOffset medInfoFileWriteTime = _fileSystem.GetLastWriteTimeUtc(medInfoPath);
+
+                _logger.Debug($"[EverMediaEventListener] Timestamps for {item.Path}. Item DateLastSaved: {itemDateLastSaved?.ToString("O") ?? "NULL"}, .medinfo File WriteTime: {medInfoFileWriteTime:O}");
+
+                if (itemDateLastSaved.HasValue && itemDateLastSaved > medInfoFileWriteTime)
+                {
+                    // **************************************************
+                    // * IF item.DateLastSaved > medInfoFile.WriteTime *
+                    // * 含义: 数据库中的信息是新的 (可能是刚探测完)     *
+                    // * 操作: 触发备份 (BackupAsync)                  *
+                    // **************************************************
+                    _logger.Info($"[EverMediaEventListener] Database MediaInfo is newer for {item.Path}. Initiating backup to .medinfo file.");
+                    await _everMediaService.BackupAsync(item);
+                }
+                else
+                {
+                    // **************************************************
+                    // * ELSE (item.DateLastSaved <= medInfoFile.WriteTime) *
+                    // * 含义: .medinfo 文件是新的或一致的             *
+                    // * 操作: 啥也不做 (避免用旧信息覆盖新信息)        *
+                    // **************************************************
+                    _logger.Debug($"[EverMediaEventListener] .medinfo file is newer or equal for {item.Path}. No action taken (avoids restoring outdated data).");
+                    // 注意：这里不调用 RestoreAsync，因为可能会用旧数据覆盖新数据或触发不必要的循环
+                }
             }
             else if (hasMediaInfo && !medInfoExists)
             {
-                // 机会性备份逻辑: 数据库中有 MediaInfo，但 .medinfo 文件不存在
-                _logger.Info($"[EverMediaEventListener] Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
+                // **************************************************
+                // * 状态 (True, False) - (hasMediaInfo && !medInfoExists) *
+                // * 含义: 数据库有 MediaInfo, 但 .medinfo 文件不存在   *
+                // * 原因: 新探测成功，还未备份                       *
+                // * 操作: 触发备份 (BackupAsync)                    *
+                // **************************************************
+                _logger.Info($"[EverMediaEventListener] State (True, False) for {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
                 await _everMediaService.BackupAsync(item);
             }
             else
             {
-                // 其他情况：例如，都有或都无，或者更新与 MediaInfo 无关
-                _logger.Debug($"[EverMediaEventListener] ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasMediaInfo (revised): {hasMediaInfo}, MedInfoExists: {medInfoExists}");
+                // **************************************************
+                // * 状态 (False, False) - (!hasMediaInfo && !medInfoExists) *
+                // * 含义: 数据库无 MediaInfo, 且 .medinfo 文件也不存在 *
+                // * 原因: 初始状态，探测失败且无备份                 *
+                // * 操作: 啥也不做                                  *
+                // **************************************************
+                _logger.Debug($"[EverMediaEventListener] State (False, False) for {item.Path}. No MediaInfo and no .medinfo file. Taking no action.");
             }
         }
         // 如果不是 .strm 文件，不做任何操作
@@ -183,16 +241,6 @@ public class EverMediaEventListener : IAsyncDisposable // Implement IAsyncDispos
 
         return hasVideoOrAudio; // 可以根据需要决定是否包含 Size == 0 的检查
     }
-
-    
-    // ***********************************************
-    // * 已移除: GetConfiguration()
-    // ***********************************************
-
-
-    // ***********************************************
-    // * 已移除: GetMedInfoPath()
-    // ***********************************************
 
 
     // --- Cleanup ---
