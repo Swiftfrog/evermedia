@@ -399,21 +399,38 @@ public class EverMediaService
         // 使用配置
         if (config.BackupMode == BackupMode.Centralized && !string.IsNullOrEmpty(config.CentralizedRootPath))
         {
+////+ 
             // 如果是中心化模式且路径有效，则构建中心化路径
             // 注意：GetRelativePath 可能需要处理不同的根目录情况
-            string itemDir = Path.GetDirectoryName(item.Path) ?? item.ContainingFolderPath;
-            string relativePath = Path.GetRelativePath(item.ContainingFolderPath, itemDir);
-            // GetRelativePath 可能返回 "." 或 ".." 或包含 ".." 的路径，需要处理
-            if (relativePath == ".")
+            
+            // 1. 获取该项目所属的媒体库的根路径
+            var libraryOptions = _libraryManager.GetLibraryOptions(item);
+            // (假设一个媒体库只有一个物理根路径；如果
+            //  有多个，您可能需要查找匹配的那一个)
+            var libraryRootPath = libraryOptions?.PathInfos.FirstOrDefault()?.Path;
+
+            if (config.BackupMode == BackupMode.Centralized && 
+                !string.IsNullOrEmpty(config.CentralizedRootPath) && 
+                !string.IsNullOrEmpty(libraryRootPath) &&
+                item.ContainingFolderPath.StartsWith(libraryRootPath)) // 确保路径有效
             {
-                relativePath = string.Empty; // 表示与 ContainingFolderPath 相同
+                // 2. 计算 item 目录相对于 媒体库根目录 的相对路径
+                string relativePath = Path.GetRelativePath(libraryRootPath, item.ContainingFolderPath);
+
+                if (relativePath == ".")
+                {
+                    relativePath = string.Empty; // 如果文件就在根目录
+                }
+
+                // 3. 组合中心化路径
+                return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
             }
-            else if (relativePath.StartsWith(".."))
-            {
-                // 如果相对路径向上跳出了 ContainingFolderPath，可能需要警告或特殊处理
-                _logger.Warn($"[EverMediaService] Relative path calculation for centralized storage resulted in '{relativePath}' for item '{item.Path}'. Using SideBySide mode for this item.");
-                 return Path.Combine(item.ContainingFolderPath, medInfoFileName);
+            else
+           {
+                // 默认或回退到 SideBySide 模式
+                return Path.Combine(item.ContainingFolderPath, medInfoFileName);
             }
+
             return Path.Combine(config.CentralizedRootPath, relativePath, medInfoFileName);
         }
         else
