@@ -1,4 +1,4 @@
-// Tasks/MediaInfoBootstrapTask.cs (Revised with config-based rate limiting using TimeSpan)
+// Tasks/MediaInfoBootstrapTask.cs (Revised with config-based rate limiting using TimeSpan and corrected timestamp update)
 using MediaBrowser.Controller.Entities; // BaseItem
 using MediaBrowser.Controller.Library; // ILibraryManager
 using MediaBrowser.Controller.Providers; // IProviderManager
@@ -287,16 +287,23 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             var totalProcessed = restoredCount + probedCount + skippedCount;
             _logger.Info($"[MediaInfoBootstrapTask] Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new meta {probedCount}, Skipped (already has metadata): {skippedCount}.");
 
-            // ✅ 在任务成功完成（没有被取消或抛出未处理异常）后，更新配置中的时间戳
-            // 调用 Plugin.Instance 上的公共方法来更新和保存配置
-            Plugin.Instance.UpdateLastBootstrapTaskRun(taskStartTime);
-            _logger.Info($"[MediaInfoBootstrapTask] Last run timestamp updated to {taskStartTime:O} via Plugin.Instance.");
+            // ✅ 修正：在任务成功完成后，记录当前时间作为下一次运行的基准
+            // 原来的错误代码：
+            // Plugin.Instance.UpdateLastBootstrapTaskRun(taskStartTime);
+            // _logger.Info($"[MediaInfoBootstrapTask] Last run timestamp updated to {taskStartTime:O} via Plugin.Instance.");
+
+            var taskCompletionTime = DateTime.UtcNow; // 记录任务完成时间
+            Plugin.Instance.UpdateLastBootstrapTaskRun(taskCompletionTime); // 使用完成时间更新配置
+            _logger.Info($"[MediaInfoBootstrapTask] Last run timestamp updated to task completion time: {taskCompletionTime:O} via Plugin.Instance.");
 
         }
         catch (OperationCanceledException)
         {
             // 任务被取消
             _logger.Info("[MediaInfoBootstrapTask] Task execution was cancelled.");
+            // 注意：如果任务被取消，可能不应该更新 LastBootstrapTaskRun 时间戳，
+            // 因为任务并未成功完成。这取决于你希望如何定义“上次成功运行时间”。
+            // 当前逻辑在取消时不会执行到更新时间戳的部分。
             throw; // 重新抛出以正确标记任务状态
         }
         catch (Exception ex)
@@ -304,6 +311,8 @@ public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             // 任务执行出错
             _logger.Error($"[MediaInfoBootstrapTask] Task execution failed: {ex.Message}");
             _logger.Debug(ex.StackTrace); // 可选：记录详细堆栈
+            // 注意：如果任务执行失败，通常也不应该更新 LastBootstrapTaskRun 时间戳。
+            // 当前逻辑在异常时会抛出，不会执行到更新时间戳的部分。
             throw; // 重新抛出以正确标记任务状态
         }
     }
