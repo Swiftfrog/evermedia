@@ -199,21 +199,20 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         // --- Config-based Rate Limiting Logic (with thread-safe lock) ---
                         if (rateLimitInterval > TimeSpan.Zero)
                         {
-                            DateTimeOffset _now, _timeElapsed;
-                            TimeSpan _timeToWait;
+                            DateTimeOffset now;
+                            TimeSpan timeElapsed, timeToWait;
                         
                             lock (_rateLimitLock)
                             {
-                                _now = DateTimeOffset.UtcNow;
-                                _timeElapsed = _now - lastProbeStart;
-                                _timeToWait = rateLimitInterval - _timeElapsed;
-                                // 注意：不在此处 await，仅计算
+                                now = DateTimeOffset.UtcNow;
+                                timeElapsed = now - lastProbeStart;
+                                timeToWait = rateLimitInterval - timeElapsed;
                             }
                         
-                            if (_timeToWait > TimeSpan.Zero)
+                            if (timeToWait > TimeSpan.Zero)
                             {
-                                _logger.Debug($"[EverMediaBootstrapTask] Waiting {_timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
-                                await Task.Delay(_timeToWait, cancellationToken);
+                                _logger.Debug($"[EverMediaBootstrapTask] Waiting {timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
+                                await Task.Delay(timeToWait, cancellationToken);
                             }
                         
                             // 更新 lastProbeStart
