@@ -196,36 +196,27 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         if (cancellationToken.IsCancellationRequested) return;
 
                         // --- Config-based Rate Limiting Logic (with thread-safe lock) ---
-                        if (rateLimitInterval > TimeSpan.Zero) // 只有当速率限制启用时才执行延迟逻辑
+                        // --- Config-based Rate Limiting Logic (with thread-safe lock) ---
+                        if (rateLimitInterval > TimeSpan.Zero)
                         {
+                            DateTimeOffset _now, _timeElapsed;
+                            TimeSpan _timeToWait;
+                        
                             lock (_rateLimitLock)
                             {
-                                var now = DateTimeOffset.UtcNow;
-                                var timeElapsed = now - lastProbeStart;
-                                var timeToWait = rateLimitInterval - timeElapsed;
-                                if (timeToWait > TimeSpan.Zero)
-                                {
-                                    _logger.Debug($"[EverMediaBootstrapTask] Waiting {timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
-                                    // 注意：Task.Delay 不能在 lock 内 await，所以先计算 delay，再释放锁后等待
-                                    // 但为了简单且 delay 通常很短，我们在这里同步等待（或改用 Release + Delay）
-                                    // 更安全的做法：计算 delay 后退出 lock，再 await Task.Delay
-                                    // 但为最小改动，我们采用：先记录 delay，再释放锁后等待
-                                    // 实际上，此处不能 await inside lock，所以重构如下：
-                                }
-                                // 由于不能在 lock 中 await，我们将 delay 计算移出
-                                // 重构：仅在 lock 中读取和更新 lastProbeStart
+                                _now = DateTimeOffset.UtcNow;
+                                _timeElapsed = _now - lastProbeStart;
+                                _timeToWait = rateLimitInterval - _timeElapsed;
+                                // 注意：不在此处 await，仅计算
                             }
-
-                            // 重新计算等待时间（无锁，但 lastProbeStart 已被保护）
-                            var now = DateTimeOffset.UtcNow;
-                            var timeElapsed = now - lastProbeStart;
-                            var timeToWait = rateLimitInterval - timeElapsed;
-                            if (timeToWait > TimeSpan.Zero)
+                        
+                            if (_timeToWait > TimeSpan.Zero)
                             {
-                                await Task.Delay(timeToWait, cancellationToken);
+                                _logger.Debug($"[EverMediaBootstrapTask] Waiting {_timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
+                                await Task.Delay(_timeToWait, cancellationToken);
                             }
-
-                            // 更新 lastProbeStart（需加锁）
+                        
+                            // 更新 lastProbeStart
                             lock (_rateLimitLock)
                             {
                                 lastProbeStart = DateTimeOffset.UtcNow;
@@ -233,12 +224,12 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         }
                         else
                         {
-                            // 如果禁用了速率限制，仍然更新时间戳
                             lock (_rateLimitLock)
                             {
                                 lastProbeStart = DateTimeOffset.UtcNow;
                             }
                         }
+                        // --- End of Rate Limiting Logic ---
                         // --- End of Rate Limiting Logic ---
 
                         _logger.Debug($"[EverMediaBootstrapTask] Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
