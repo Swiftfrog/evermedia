@@ -219,7 +219,8 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         // 检查是否存在 .medinfo 文件
                         string medInfoPath = _everMediaService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
 
-                        if (System.IO.File.Exists(medInfoPath))
+                        // if (System.IO.File.Exists(medInfoPath))
+                        if (_fileSystem.FileExists(medInfoPath))
                         {
                             _logger.Info($"[EverMediaBootstrapTask] Found .medinfo file for {item.Path}. Attempting restore.");
                             // 存在 .medinfo 文件：尝试恢复 (自愈)
