@@ -16,11 +16,11 @@ public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 Base
     public override string Description => "Self-healing MediaInfo persistence for .strm files.";
     public override Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D");
 
-    // ✅ 关键修订: 添加一个公共属性来安全地暴露配置。
+    // 添加一个公共属性来安全地暴露配置。
     // 这个属性可以从插件内部调用受保护的 GetOptions() 方法。
     public PluginConfiguration Configuration => GetOptions();
 
-    // ✅ 添加一个公共方法来更新并保存 LastBootstrapTaskRun 时间戳
+    // 添加一个公共方法来更新并保存 LastBootstrapTaskRun 时间戳
     public void UpdateLastBootstrapTaskRun(DateTime? newTimestamp)
     {
         var config = GetOptions(); // 获取当前配置
@@ -31,14 +31,14 @@ public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 Base
         }
     }
 
-    // ✅ 构造函数使用 IServerApplicationHost
+    // 构造函数使用 IServerApplicationHost
     public Plugin(IServerApplicationHost applicationHost)
         : base(applicationHost) // 将 applicationHost 传递给基类
     {
         Instance = this; // 在构造函数中设置 Instance
     }
 
-    // ✅ 静态实例
+    // 静态实例
     public static Plugin Instance { get; private set; } = null!; // 初始化为 null! 以避免未赋值警告
 
 }

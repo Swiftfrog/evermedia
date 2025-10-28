@@ -3,6 +3,9 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <AssemblyVersion>25.10.28</AssemblyVersion>
+    <FileVersion>25.10.28</FileVersion>
+    <IncludeSourceRevisionInInformationalVersion>true</IncludeSourceRevisionInInformationalVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- 关键设置：指定输出类型为库 (Library/DLL) -->
@@ -18,8 +21,6 @@
   <ItemGroup>
     <!-- 引用 Emby 4.9.1.80 的核心包 -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" />
-    <!-- ✅ 添加 System.Threading.RateLimiting NuGet 包引用 -->
-    <PackageReference Include="System.Threading.RateLimiting" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
