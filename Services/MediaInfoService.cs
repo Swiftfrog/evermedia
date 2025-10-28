@@ -85,16 +85,17 @@ public class EverMediaService
                 _logger.Error($"[EverMediaService] Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
                 return false;
             }
-
-            // 1. 获取项目的 MediaSourceInfo (使用 item.GetMediaSources - 选择合适的重载)
-            // 使用参数较少的重载，适用于 CoverArt，但也适用于获取当前已加载的信息
-            // 参数: enableAlternateMediaSources, enablePathSubstitution, libraryOptions
-            var mediaSources = item.GetMediaSources(false, false, libraryOptions); // ✅ 修正：使用带参数的 GetMediaSources
-
+            
+            // ✅ 优先：尝试从 Video.MediaSources 获取（已加载的缓存数据）
+            var mediaSources = (item as Video)?.MediaSources?.ToList();
+            
+            // ✅ 回退：如果为空，调用 GetMediaSources（可能触发 probe）
+            mediaSources ??= item.GetMediaSources(false, false, libraryOptions)?.ToList();
+            
             if (mediaSources == null || !mediaSources.Any())
             {
-                _logger.Info($"[EverMediaService] No MediaSources found via GetMediaSources for item: {item.Path ?? item.Name}. Skipping backup.");
-                return false; // 没有找到媒体源，无法备份
+                _logger.Info($"[EverMediaService] No MediaSources found for item: {item.Path ?? item.Name}. Skipping backup.");
+                return false;
             }
             
             // 获取章节
