@@ -78,7 +78,6 @@ public class EverMediaService
 
         try
         {
-            // 获取项目的 LibraryOptions
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
             if (libraryOptions == null)
             {
@@ -86,11 +85,7 @@ public class EverMediaService
                 return false;
             }
             
-            // ✅ 优先：尝试从 Video.MediaSources 获取（已加载的缓存数据）
-            var mediaSources = (item as Video)?.MediaSources?.ToList();
-            
-            // ✅ 回退：如果为空，调用 GetMediaSources（可能触发 probe）
-            mediaSources ??= item.GetMediaSources(false, false, libraryOptions)?.ToList();
+            var mediaSources = item.GetMediaSources(false, false, libraryOptions)?.ToList();
             
             if (mediaSources == null || !mediaSources.Any())
             {
