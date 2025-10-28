@@ -86,14 +86,15 @@ public class EverMediaService
                 return false;
             }
 
-            // 优先使用已加载的 MediaSources，回退到 GetMediaSources
-            var mediaSources = item.MediaSources?.ToList() ??
-                               item.GetMediaSources(false, false, libraryOptions)?.ToList();
+            // 1. 获取项目的 MediaSourceInfo (使用 item.GetMediaSources - 选择合适的重载)
+            // 使用参数较少的重载，适用于 CoverArt，但也适用于获取当前已加载的信息
+            // 参数: enableAlternateMediaSources, enablePathSubstitution, libraryOptions
+            var mediaSources = item.GetMediaSources(false, false, libraryOptions); // ✅ 修正：使用带参数的 GetMediaSources
 
             if (mediaSources == null || !mediaSources.Any())
             {
-                _logger.Info($"[EverMediaService] No MediaSources found for item: {item.Path ?? item.Name}. Skipping backup.");
-                return false;
+                _logger.Info($"[EverMediaService] No MediaSources found via GetMediaSources for item: {item.Path ?? item.Name}. Skipping backup.");
+                return false; // 没有找到媒体源，无法备份
             }
             
             // 获取章节
