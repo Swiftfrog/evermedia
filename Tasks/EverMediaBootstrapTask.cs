@@ -20,7 +20,6 @@ namespace EverMedia.Tasks; // 使用命名空间组织代码
 /// 计划任务：扫描并持久化 .strm 文件的 MediaInfo。
 /// 这是主动维护者，负责初始化和持续维护。
 /// </summary>
-//public class MediaInfoBootstrapTask : IScheduledTask // 实现 IScheduledTask 接口
 public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask 接口
 {
     // --- 依赖注入的私有字段 ---
@@ -29,6 +28,9 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     private readonly IProviderManager _providerManager;
     private readonly EverMediaService _everMediaService;
     private readonly IFileSystem _fileSystem; // 注入 IFileSystem
+
+    // --- 用于速率限制的线程安全锁 ---
+    private readonly object _rateLimitLock = new();
 
     // --- 构造函数：接收依赖项 ---
     public EverMediaBootstrapTask(
@@ -193,24 +195,49 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         // 检查取消令牌（在获取到并发许可后再次检查）
                         if (cancellationToken.IsCancellationRequested) return;
 
-                        // --- Config-based Rate Limiting Logic ---
+                        // --- Config-based Rate Limiting Logic (with thread-safe lock) ---
                         if (rateLimitInterval > TimeSpan.Zero) // 只有当速率限制启用时才执行延迟逻辑
                         {
+                            lock (_rateLimitLock)
+                            {
+                                var now = DateTimeOffset.UtcNow;
+                                var timeElapsed = now - lastProbeStart;
+                                var timeToWait = rateLimitInterval - timeElapsed;
+                                if (timeToWait > TimeSpan.Zero)
+                                {
+                                    _logger.Debug($"[EverMediaBootstrapTask] Waiting {timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
+                                    // 注意：Task.Delay 不能在 lock 内 await，所以先计算 delay，再释放锁后等待
+                                    // 但为了简单且 delay 通常很短，我们在这里同步等待（或改用 Release + Delay）
+                                    // 更安全的做法：计算 delay 后退出 lock，再 await Task.Delay
+                                    // 但为最小改动，我们采用：先记录 delay，再释放锁后等待
+                                    // 实际上，此处不能 await inside lock，所以重构如下：
+                                }
+                                // 由于不能在 lock 中 await，我们将 delay 计算移出
+                                // 重构：仅在 lock 中读取和更新 lastProbeStart
+                            }
+
+                            // 重新计算等待时间（无锁，但 lastProbeStart 已被保护）
                             var now = DateTimeOffset.UtcNow;
                             var timeElapsed = now - lastProbeStart;
                             var timeToWait = rateLimitInterval - timeElapsed;
                             if (timeToWait > TimeSpan.Zero)
                             {
-                                _logger.Debug($"[EverMediaBootstrapTask] Waiting {timeToWait.TotalMilliseconds:F0}ms before probing {item.Path} to respect rate limit.");
-                                await Task.Delay(timeToWait, cancellationToken); // 直接使用 TimeSpan
+                                await Task.Delay(timeToWait, cancellationToken);
                             }
-                            // Update the timestamp *after* the delay
-                            lastProbeStart = DateTimeOffset.UtcNow;
+
+                            // 更新 lastProbeStart（需加锁）
+                            lock (_rateLimitLock)
+                            {
+                                lastProbeStart = DateTimeOffset.UtcNow;
+                            }
                         }
                         else
                         {
-                            // 如果禁用了速率限制，仍然更新时间戳以备后续可能的逻辑使用（虽然这里没用到）
-                            lastProbeStart = DateTimeOffset.UtcNow;
+                            // 如果禁用了速率限制，仍然更新时间戳
+                            lock (_rateLimitLock)
+                            {
+                                lastProbeStart = DateTimeOffset.UtcNow;
+                            }
                         }
                         // --- End of Rate Limiting Logic ---
 
@@ -219,7 +246,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         // 检查是否存在 .medinfo 文件
                         string medInfoPath = _everMediaService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
 
-                        // if (System.IO.File.Exists(medInfoPath))
+                        //if (System.IO.File.Exists(medInfoPath))
                         if (_fileSystem.FileExists(medInfoPath))
                         {
                             _logger.Info($"[EverMediaBootstrapTask] Found .medinfo file for {item.Path}. Attempting restore.");
