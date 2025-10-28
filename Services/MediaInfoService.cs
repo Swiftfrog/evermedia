@@ -247,7 +247,7 @@ public class EverMediaService
             }
 
             _logger.Debug($"[EverMediaService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
-            _itemRepository.SaveChapters(item.InternalId, false, chaptersToRestore);
+            _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
             // 更新项目并通知 (使用 ILibraryManager)
             _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
             _logger.Info($"[EverMediaService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
