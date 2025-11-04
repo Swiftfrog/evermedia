@@ -14,7 +14,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using EverMedia.Configuration;
+//using EverMedia.Configuration;
 
 namespace EverMedia.Services;
 
@@ -58,7 +58,7 @@ public class EverMediaService
         return _cachedPlugin ??= _applicationHost.Plugins.OfType<Plugin>().FirstOrDefault();
     }
 
-    private PluginConfiguration? GetConfiguration()
+    private EverMediaConfig? GetConfiguration()
     {
         return GetPlugin()?.Configuration;
     }

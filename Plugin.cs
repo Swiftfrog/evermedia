@@ -19,7 +19,7 @@ public class Plugin : BasePluginSimpleUI<EverMediaConfig> // ✅ 继承 BasePlug
 
     // 添加一个公共属性来安全地暴露配置。
     // 这个属性可以从插件内部调用受保护的 GetOptions() 方法。
-    public PluginConfiguration Configuration => GetOptions();
+    public EverMediaConfig Configuration => GetOptions();
 
     // 添加一个公共方法来更新并保存 LastBootstrapTaskRun 时间戳
     public void UpdateLastBootstrapTaskRun(DateTime? newTimestamp)
