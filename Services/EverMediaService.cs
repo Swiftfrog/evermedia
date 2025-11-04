@@ -271,7 +271,7 @@ public class EverMediaService
             return Path.Combine(fallbackDir, item.Id.ToString() + ".medinfo");
         }
 
-        var config = GetConfiguration() ?? new PluginConfiguration();
+        var config = GetConfiguration() ?? new EverMediaConfig();
         string fileName = Path.GetFileNameWithoutExtension(item.Path) + ".medinfo";
 
         if (config.BackupMode == BackupMode.Centralized && !string.IsNullOrWhiteSpace(config.CentralizedRootPath))
