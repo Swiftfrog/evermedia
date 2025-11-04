@@ -66,13 +66,13 @@ public class EverMediaService
     // --- 核心方法：备份 MediaInfo ---
     public async Task<bool> BackupAsync(BaseItem item)
     {
-        _logger.Info($"[EverMediaService] Starting BackupAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+        _logger.Info($"[EverMedia] Service: Starting BackupAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
 
         // 在方法内部获取当前配置
         var config = GetConfiguration();
         if (config == null)
         {
-            _logger.Error("[EverMediaService] Failed to get plugin configuration for BackupAsync.");
+            _logger.Error("[EverMedia] Service: Failed to get plugin configuration for BackupAsync.");
             return false;
         }
 
@@ -81,7 +81,7 @@ public class EverMediaService
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
             if (libraryOptions == null)
             {
-                _logger.Error($"[EverMediaService] Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
+                _logger.Error($"[EverMedia] Service: Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
                 return false;
             }
             
@@ -89,7 +89,7 @@ public class EverMediaService
             
             if (mediaSources == null || !mediaSources.Any())
             {
-                _logger.Info($"[EverMediaService] No MediaSources found for item: {item.Path ?? item.Name}. Skipping backup.");
+                _logger.Info($"[EverMedia] Service: No MediaSources found for item: {item.Path ?? item.Name}. Skipping backup.");
                 return false;
             }
             
@@ -105,7 +105,7 @@ public class EverMediaService
             var validSourcesWithChapters = mediaSourcesWithChapters.Where(swc => swc.MediaSourceInfo != null).ToList();
             if (!validSourcesWithChapters.Any())
             {
-                _logger.Warn($"[EverMediaService] All MediaSourceInfo objects were null for item: {item.Path ?? item.Name}. Skipping backup.");
+                _logger.Warn($"[EverMedia] Service: All MediaSourceInfo objects were null for item: {item.Path ?? item.Name}. Skipping backup.");
                 return false;
             }
 
@@ -150,12 +150,12 @@ public class EverMediaService
             // SerializeToFile is synchronous; wrap in Task.Run to avoid blocking
             await Task.Run(() => _jsonSerializer.SerializeToFile(backupData, medInfoPath));
 
-            _logger.Info($"[EverMediaService] Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
+            _logger.Info($"[EverMedia] Service: Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
             return true;
         }
         catch (Exception ex)
         {
-            _logger.Error($"[EverMediaService] Error during BackupAsync for item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Error($"[EverMedia] Service: Error during BackupAsync for item {item.Path ?? item.Name}: {ex.Message}");
             _logger.Debug(ex.StackTrace);
             return false;
         }
@@ -164,23 +164,23 @@ public class EverMediaService
     // --- 核心方法：恢复 MediaInfo ---
     public async Task<bool> RestoreAsync(BaseItem item)
     {
-        _logger.Info($"[EverMediaService] Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+        _logger.Info($"[EverMedia] Service: Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
 
         var config = GetConfiguration();
         if (config == null)
         {
-            _logger.Error("[EverMediaService] Failed to get plugin configuration for RestoreAsync.");
+            _logger.Error("[EverMedia] Service: Failed to get plugin configuration for RestoreAsync.");
             return false;
         }
 
         try
         {
             string medInfoPath = GetMedInfoPath(item);
-            _logger.Debug($"[EverMediaService] Looking for medinfo file: {medInfoPath}");
+            _logger.Debug($"[EverMedia] Service: Looking for medinfo file: {medInfoPath}");
 
             if (!_fileSystem.FileExists(medInfoPath))
             {
-                _logger.Info($"[EverMediaService] No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
+                _logger.Info($"[EverMedia] Service: No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
                 return false;
             }
 
@@ -191,18 +191,18 @@ public class EverMediaService
             }
             catch (Exception ex)
             {
-                _logger.Error($"[EverMediaService] Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
+                _logger.Error($"[EverMedia] Service: Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
                 _logger.Debug(ex.StackTrace);
                 return false;
             }
 
             if (backupDto == null || backupDto.Data == null || !backupDto.Data.Any())
             {
-                _logger.Warn($"[EverMediaService] No data found in medinfo file {medInfoPath}.");
+                _logger.Warn($"[EverMedia] Service: No data found in medinfo file {medInfoPath}.");
                 return false;
             }
 
-            _logger.Debug($"[EverMediaService] Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
+            _logger.Debug($"[EverMedia] Service: Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
 
             var sourceToRestore = backupDto.Data.First();
             var mediaSourceInfo = sourceToRestore.MediaSourceInfo;
@@ -210,7 +210,7 @@ public class EverMediaService
 
             if (mediaSourceInfo == null)
             {
-                _logger.Warn($"[EverMediaService] MediaSourceInfo in medinfo file {medInfoPath} is null.");
+                _logger.Warn($"[EverMedia] Service: MediaSourceInfo in medinfo file {medInfoPath} is null.");
                 return false;
             }
 
@@ -237,7 +237,7 @@ public class EverMediaService
             }
 
             // 调用 SaveMediaStreams
-            _logger.Debug($"[EverMediaService] Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
+            _logger.Debug($"[EverMedia] Service: Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
             // 使用 item.InternalId
             _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None);
 
@@ -246,16 +246,16 @@ public class EverMediaService
                 chapter.ImageTag = null;    // 清空图片标签，避免上下文问题
             }
 
-            _logger.Debug($"[EverMediaService] Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
+            _logger.Debug($"[EverMedia] Service: Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
             _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
             // 更新项目并通知 (使用 ILibraryManager)
             _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
-            _logger.Info($"[EverMediaService] Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
+            _logger.Info($"[EverMedia] Service: Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
             return true;
         }
         catch (Exception ex)
         {
-            _logger.Error($"[EverMediaService] Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Error($"[EverMedia] Service: Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
             _logger.Debug(ex.StackTrace);
             return false;
         }
@@ -266,7 +266,7 @@ public class EverMediaService
     {
         if (string.IsNullOrEmpty(item.Path))
         {
-            _logger.Warn($"[EverMediaService] Item path is null or empty for ID: {item.Id}. Using fallback path.");
+            _logger.Warn($"[EverMedia] Service: Item path is null or empty for ID: {item.Id}. Using fallback path.");
             string fallbackDir = item.ContainingFolderPath ?? string.Empty;
             return Path.Combine(fallbackDir, item.Id.ToString() + ".medinfo");
         }
