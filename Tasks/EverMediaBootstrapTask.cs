@@ -3,16 +3,17 @@ using MediaBrowser.Controller.Entities; // BaseItem
 using MediaBrowser.Controller.Library; // ILibraryManager
 using MediaBrowser.Controller.Providers; // IProviderManager
 using MediaBrowser.Model.Entities; // LocationType
+using MediaBrowser.Model.IO; // For IFileSystem, DirectoryService
 using MediaBrowser.Model.Logging; // ILogger
 using MediaBrowser.Model.Tasks; // IScheduledTask, TaskTriggerInfo
 using System; // For Guid
 using System.Collections.Generic; // For IEnumerable
 using System.Threading; // For CancellationToken
 using System.Threading.Tasks; // For Task
-using EverMedia.Services; // 引入 MediaInfoService
-using EverMedia.Configuration; // 引入配置类
 using System.Linq; // For Where, Any
-using MediaBrowser.Model.IO; // For IFileSystem, DirectoryService
+
+using EverMedia.Services; // 引入 MediaInfoService
+//using EverMedia.Configuration; // 引入配置类
 
 namespace EverMedia.Tasks; // 使用命名空间组织代码
 
@@ -112,7 +113,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                 // 至关重要：确保查询能深入媒体库的所有子文件夹，以找到所有 .strm 文件。
                 Recursive = true,
 
-                // ✅ 新增：只查询自上次运行后元数据被保存过的项目
+                // 只查询自上次运行后元数据被保存过的项目
                 MinDateLastSaved = lastRunTimestamp
             };
 
@@ -228,7 +229,6 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                                 lastProbeStart = DateTimeOffset.UtcNow;
                             }
                         }
-                        // --- End of Rate Limiting Logic ---
                         // --- End of Rate Limiting Logic ---
 
                         _logger.Debug($"[EverMediaBootstrapTask] Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
