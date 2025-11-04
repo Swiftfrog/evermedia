@@ -5,12 +5,13 @@ using MediaBrowser.Common.Plugins; // 包含 IPlugin 相关接口
 using MediaBrowser.Model.Tasks; // IScheduledTask
 using System;
 using System.Collections.Generic; // For IEnumerable
-using EverMedia.Configuration;
+//using EverMedia.Configuration;
 using EverMedia.Tasks; // 引入计划任务
 
 namespace EverMedia;
 
-public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 BasePluginSimpleUI
+//public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 BasePluginSimpleUI
+public class Plugin : BasePluginSimpleUI<EverMediaConfig> // ✅ 继承 BasePluginSimpleUI
 {
     public override string Name => "EverMedia";
     public override string Description => "Self-healing MediaInfo persistence for .strm files.";

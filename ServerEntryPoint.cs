@@ -37,7 +37,7 @@ public class ServerEntryPoint : IServerEntryPoint // ✅ 使用 IServerEntryPoin
     {
         _libraryManager.ItemAdded += _eventListener.OnItemAdded;
         _libraryManager.ItemUpdated += _eventListener.OnItemUpdated;
-        _logger.Info("[ServerEntryPoint] Event handlers subscribed.");
+        _logger.Info("[EverMedia] Event handlers subscribed.");
     }
 
     /// <summary>
@@ -48,6 +48,6 @@ public class ServerEntryPoint : IServerEntryPoint // ✅ 使用 IServerEntryPoin
     {
         _libraryManager.ItemAdded -= _eventListener.OnItemAdded;
         _libraryManager.ItemUpdated -= _eventListener.OnItemUpdated;
-        _logger.Info("[ServerEntryPoint] Event handlers unsubscribed.");
+        _logger.Info("[EverMedia] Event handlers unsubscribed.");
     }
 }
