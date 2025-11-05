@@ -162,28 +162,30 @@ public class EverMediaService
     }
 
     // --- 核心方法：恢复 MediaInfo ---
-    public async Task<bool> RestoreAsync(BaseItem item)
+    
+    // 移除 async 关键字
+    public Task<bool> RestoreAsync(BaseItem item)
     {
         _logger.Info($"[EverMedia] Service: Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
-
+    
         var config = GetConfiguration();
         if (config == null)
         {
             _logger.Error("[EverMedia] Service: Failed to get plugin configuration for RestoreAsync.");
-            return false;
+            return Task.FromResult(false); // ✅ 正确：返回 Task<bool>
         }
-
+    
         try
         {
             string medInfoPath = GetMedInfoPath(item);
             _logger.Debug($"[EverMedia] Service: Looking for medinfo file: {medInfoPath}");
-
+    
             if (!_fileSystem.FileExists(medInfoPath))
             {
                 _logger.Info($"[EverMedia] Service: No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
-                return false;
+                return Task.FromResult(false);
             }
-
+    
             BackupDto? backupDto = null;
             try
             {
@@ -193,73 +195,170 @@ public class EverMediaService
             {
                 _logger.Error($"[EverMedia] Service: Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
                 _logger.Debug(ex.StackTrace);
-                return false;
+                return Task.FromResult(false);
             }
-
+    
             if (backupDto == null || backupDto.Data == null || !backupDto.Data.Any())
             {
                 _logger.Warn($"[EverMedia] Service: No data found in medinfo file {medInfoPath}.");
-                return false;
+                return Task.FromResult(false);
             }
-
+    
             _logger.Debug($"[EverMedia] Service: Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
-
+    
             var sourceToRestore = backupDto.Data.First();
             var mediaSourceInfo = sourceToRestore.MediaSourceInfo;
             var chaptersToRestore = sourceToRestore.Chapters ?? new List<ChapterInfo>();
-
+    
             if (mediaSourceInfo == null)
             {
                 _logger.Warn($"[EverMedia] Service: MediaSourceInfo in medinfo file {medInfoPath} is null.");
-                return false;
+                return Task.FromResult(false);
             }
-
+    
             item.Size = mediaSourceInfo.Size.GetValueOrDefault();
             item.RunTimeTicks = mediaSourceInfo.RunTimeTicks;
             item.Container = mediaSourceInfo.Container;
             item.TotalBitrate = mediaSourceInfo.Bitrate.GetValueOrDefault();
-
+    
             var videoStream = mediaSourceInfo.MediaStreams
                 .Where(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue)
                 .OrderByDescending(s => (long)s.Width!.Value * s.Height!.Value)
                 .FirstOrDefault();
-
+    
             if (videoStream != null)
             {
                 item.Width = videoStream.Width.GetValueOrDefault();
                 item.Height = videoStream.Height.GetValueOrDefault();
             }
-
+    
             var streamsToSave = mediaSourceInfo.MediaStreams?.ToList() ?? new List<MediaStream>();
             foreach (var stream in streamsToSave.Where(s => s.IsExternal && s.Type == MediaStreamType.Subtitle && s.Path != null))
             {
                 stream.Path = Path.Combine(item.ContainingFolderPath, stream.Path);
             }
-
-            // 调用 SaveMediaStreams
+    
             _logger.Debug($"[EverMedia] Service: Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
-            // 使用 item.InternalId
             _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None);
-
+    
             foreach (var chapter in chaptersToRestore)
             {
-                chapter.ImageTag = null;    // 清空图片标签，避免上下文问题
+                chapter.ImageTag = null;
             }
-
+    
             _logger.Debug($"[EverMedia] Service: Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
             _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
-            // 更新项目并通知 (使用 ILibraryManager)
             _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
+    
             _logger.Info($"[EverMedia] Service: Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
-            return true;
+            return Task.FromResult(true);
         }
         catch (Exception ex)
         {
             _logger.Error($"[EverMedia] Service: Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
             _logger.Debug(ex.StackTrace);
-            return false;
+            return Task.FromResult(false);
         }
     }
+    
+    // public async Task<bool> RestoreAsync(BaseItem item)
+    // {
+    //     _logger.Info($"[EverMedia] Service: Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+// 
+    //     var config = GetConfiguration();
+    //     if (config == null)
+    //     {
+    //         _logger.Error("[EverMedia] Service: Failed to get plugin configuration for RestoreAsync.");
+    //         return false;
+    //     }
+// 
+    //     try
+    //     {
+    //         string medInfoPath = GetMedInfoPath(item);
+    //         _logger.Debug($"[EverMedia] Service: Looking for medinfo file: {medInfoPath}");
+// 
+    //         if (!_fileSystem.FileExists(medInfoPath))
+    //         {
+    //             _logger.Info($"[EverMedia] Service: No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
+    //             return false;
+    //         }
+// 
+    //         BackupDto? backupDto = null;
+    //         try
+    //         {
+    //             backupDto = _jsonSerializer.DeserializeFromFile<BackupDto>(medInfoPath);
+    //         }
+    //         catch (Exception ex)
+    //         {
+    //             _logger.Error($"[EverMedia] Service: Error deserializing medinfo file {medInfoPath} into BackupDto: {ex.Message}");
+    //             _logger.Debug(ex.StackTrace);
+    //             return false;
+    //         }
+// 
+    //         if (backupDto == null || backupDto.Data == null || !backupDto.Data.Any())
+    //         {
+    //             _logger.Warn($"[EverMedia] Service: No data found in medinfo file {medInfoPath}.");
+    //             return false;
+    //         }
+// 
+    //         _logger.Debug($"[EverMedia] Service: Restoring from EmbyVersion: {backupDto.EmbyVersion ?? "Unknown"}, PluginVersion: {backupDto.PluginVersion ?? "Unknown"}");
+// 
+    //         var sourceToRestore = backupDto.Data.First();
+    //         var mediaSourceInfo = sourceToRestore.MediaSourceInfo;
+    //         var chaptersToRestore = sourceToRestore.Chapters ?? new List<ChapterInfo>();
+// 
+    //         if (mediaSourceInfo == null)
+    //         {
+    //             _logger.Warn($"[EverMedia] Service: MediaSourceInfo in medinfo file {medInfoPath} is null.");
+    //             return false;
+    //         }
+// 
+    //         item.Size = mediaSourceInfo.Size.GetValueOrDefault();
+    //         item.RunTimeTicks = mediaSourceInfo.RunTimeTicks;
+    //         item.Container = mediaSourceInfo.Container;
+    //         item.TotalBitrate = mediaSourceInfo.Bitrate.GetValueOrDefault();
+// 
+    //         var videoStream = mediaSourceInfo.MediaStreams
+    //             .Where(s => s.Type == MediaStreamType.Video && s.Width.HasValue && s.Height.HasValue)
+    //             .OrderByDescending(s => (long)s.Width!.Value * s.Height!.Value)
+    //             .FirstOrDefault();
+// 
+    //         if (videoStream != null)
+    //         {
+    //             item.Width = videoStream.Width.GetValueOrDefault();
+    //             item.Height = videoStream.Height.GetValueOrDefault();
+    //         }
+// 
+    //         var streamsToSave = mediaSourceInfo.MediaStreams?.ToList() ?? new List<MediaStream>();
+    //         foreach (var stream in streamsToSave.Where(s => s.IsExternal && s.Type == MediaStreamType.Subtitle && s.Path != null))
+    //         {
+    //             stream.Path = Path.Combine(item.ContainingFolderPath, stream.Path);
+    //         }
+// 
+    //         // 调用 SaveMediaStreams
+    //         _logger.Debug($"[EverMedia] Service: Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
+    //         // 使用 item.InternalId
+    //         _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None);
+// 
+    //         foreach (var chapter in chaptersToRestore)
+    //         {
+    //             chapter.ImageTag = null;    // 清空图片标签，避免上下文问题
+    //         }
+// 
+    //         _logger.Debug($"[EverMedia] Service: Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
+    //         _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
+    //         // 更新项目并通知 (使用 ILibraryManager)
+    //         _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
+    //         _logger.Info($"[EverMedia] Service: Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
+    //         return true;
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         _logger.Error($"[EverMedia] Service: Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
+    //         _logger.Debug(ex.StackTrace);
+    //         return false;
+    //     }
+    // }
 
     // --- 重构后的 GetMedInfoPath：支持多路径库 + 手动相对路径 ---
     public string GetMedInfoPath(BaseItem item)
