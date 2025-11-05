@@ -165,7 +165,7 @@ public class EverMediaEventListener : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         foreach (var kvp in _debounceTokens)
         {
@@ -173,5 +173,16 @@ public class EverMediaEventListener : IAsyncDisposable
             kvp.Value.Dispose();
         }
         _debounceTokens.Clear();
+        return ValueTask.CompletedTask;
     }
+
+    // public async ValueTask DisposeAsync()
+    // {
+    //     foreach (var kvp in _debounceTokens)
+    //     {
+    //         kvp.Value.Cancel();
+    //         kvp.Value.Dispose();
+    //     }
+    //     _debounceTokens.Clear();
+    // }
 }
