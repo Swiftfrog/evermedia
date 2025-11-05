@@ -23,4 +23,8 @@
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="EverMediaLogo.png" />
+  </ItemGroup>
+
 </Project>

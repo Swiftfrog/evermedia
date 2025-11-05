@@ -11,7 +11,7 @@ using EverMedia.Tasks; // 引入计划任务
 namespace EverMedia;
 
 //public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 BasePluginSimpleUI
-public class Plugin : BasePluginSimpleUI<EverMediaConfig> // ✅ 继承 BasePluginSimpleUI
+public class Plugin : BasePluginSimpleUI<EverMediaConfig>, IHasThumbImage
 {
     public override string Name => "EverMedia";
     public override string Description => "Self-healing MediaInfo persistence for .strm files.";
@@ -41,5 +41,14 @@ public class Plugin : BasePluginSimpleUI<EverMediaConfig> // ✅ 继承 BasePlug
 
     // 静态实例
     public static Plugin Instance { get; private set; } = null!; // 初始化为 null! 以避免未赋值警告
-
+    
+    // 添加这个 ThumbImage 属性
+    public Stream GetThumbImage()
+    {
+        var assembly = GetType().Assembly;
+        string resourceName = "EverMedia.EverMediaLogo.webp";        
+        return assembly.GetManifestResourceStream(resourceName);
+    }
+    public ImageFormat ThumbImageFormat => ImageFormat.Webp;
+    
 }
