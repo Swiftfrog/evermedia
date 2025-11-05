@@ -63,7 +63,8 @@ public class EverMediaEventListener : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemAdded: {ex.Message}");
-            _logger.Debug(ex, "Stack trace for OnItemAdded exception:");
+            //_logger.Debug(ex, "Stack trace for OnItemAdded exception:");
+            _logger.Debug($"Stack trace for OnItemAdded exception: {ex}");
         }
     }
 
