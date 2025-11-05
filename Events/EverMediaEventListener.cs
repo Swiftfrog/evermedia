@@ -1,4 +1,4 @@
-// Events/MediaInfoEventListener.cs
+// Events/EverMediaEventListener.cs
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
@@ -39,101 +39,117 @@ public class EverMediaEventListener : IAsyncDisposable
     // --- ItemAdded: 新增 .strm 文件处理 ---
     public async void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
-        if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            _logger.Info($"[EverMedia] EventListener: ItemAdded event triggered for .strm file: {item.Path}");
-
-            string medInfoPath = _everMediaService.GetMedInfoPath(item);
-            bool medInfoExists = _fileSystem.FileExists(medInfoPath);
-
-            if (medInfoExists)
+            if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.Info($"[EverMedia] EventListener: .medinfo file found for added item: {item.Path}. Attempting quick restore.");
-                await _everMediaService.RestoreAsync(item);
+                _logger.Info($"[EverMedia] EventListener: ItemAdded event triggered for .strm file: {item.Path}");
+
+                string medInfoPath = _everMediaService.GetMedInfoPath(item);
+                bool medInfoExists = _fileSystem.FileExists(medInfoPath);
+
+                if (medInfoExists)
+                {
+                    _logger.Info($"[EverMedia] EventListener: .medinfo file found for added item: {item.Path}. Attempting quick restore.");
+                    await _everMediaService.RestoreAsync(item);
+                }
+                else
+                {
+                    _logger.Info($"[EverMedia] EventListener: No .medinfo file found for added item: {item.Path}. Triggering FFProbe to fetch MediaInfo.");
+                    await TriggerFullProbeAsync(item);
+                }
             }
-            else
-            {
-                _logger.Info($"[EverMedia] EventListener: No .medinfo file found for added item: {item.Path}. Triggering FFProbe to fetch MediaInfo.");
-                await TriggerFullProbeAsync(item);
-            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemAdded: {ex.Message}");
+            _logger.Debug(ex, "Stack trace for OnItemAdded exception:");
         }
     }
 
     // --- ItemUpdated: 更新事件处理（含字幕刷新）---
     public async void OnItemUpdated(object? sender, ItemChangeEventArgs e)
     {
-        if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            _logger.Debug($"[EverMedia] EventListener: ItemUpdated event received for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count before debounce: {(item.MediaStreams?.Count ?? 0)}");
-
-            var itemId = item.Id;
-            if (_debounceTokens.TryGetValue(itemId, out var existingCts))
+            if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
             {
-                existingCts.Cancel();
-                existingCts.Dispose();
-            }
+                _logger.Debug($"[EverMedia] EventListener: ItemUpdated event received for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count before debounce: {(item.MediaStreams?.Count ?? 0)}");
 
-            var newCts = new CancellationTokenSource();
-            _debounceTokens[itemId] = newCts;
+                var itemId = item.Id;
+                if (_debounceTokens.TryGetValue(itemId, out var existingCts))
+                {
+                    existingCts.Cancel();
+                    existingCts.Dispose();
+                }
 
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(1), newCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Debug($"[EverMedia] EventListener: ItemUpdated debounce cancelled for item: {item.Path}");
-                return;
-            }
-            finally
-            {
-                _debounceTokens.TryRemove(itemId, out _);
-                newCts.Dispose();
-            }
+                var newCts = new CancellationTokenSource();
+                _debounceTokens[itemId] = newCts;
 
-            _logger.Debug($"[EverMedia] EventListener: ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
-
-            var mediaStreams = item.GetMediaStreams();
-            var hasVideoOrAudio = mediaStreams?.Any(s => s.Type == MediaStreamType.Video || s.Type == MediaStreamType.Audio) == true;
-            var hasSubtitles = mediaStreams?.Any(s => s.Type == MediaStreamType.Subtitle) == true;
-
-            string medInfoPath = _everMediaService.GetMedInfoPath(item);
-            bool medInfoExists = _fileSystem.FileExists(medInfoPath);
-
-            _logger.Debug($"[EverMedia] EventListener: Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
-
-            // ✅ 字幕-only 场景：删除 .medinfo + 触发 probe
-            if (hasSubtitles && !hasVideoOrAudio && medInfoExists)
-            {
-                _logger.Info($"[EverMedia] EventListener: Detected subtitle-only update for {item.Path}. Deleting .medinfo and triggering FFProbe to refresh full MediaInfo.");
                 try
                 {
-                    _fileSystem.DeleteFile(medInfoPath);
+                    await Task.Delay(TimeSpan.FromSeconds(1), newCts.Token);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException)
                 {
-                    _logger.Error($"[EverMedia] EventListener: Failed to delete .medinfo file at {medInfoPath}: {ex.Message}");
+                    _logger.Debug($"[EverMedia] EventListener: ItemUpdated debounce cancelled for item: {item.Path}");
+                    return;
                 }
-                await TriggerFullProbeAsync(item);
-                return;
-            }
+                finally
+                {
+                    _debounceTokens.TryRemove(itemId, out _);
+                    newCts.Dispose();
+                }
 
-            // 原有逻辑：自愈
-            if (!hasVideoOrAudio && medInfoExists)
-            {
-                _logger.Info($"[EverMedia] EventListener: Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
-                await _everMediaService.RestoreAsync(item);
+                _logger.Debug($"[EverMedia] EventListener: ItemUpdated debounce completed for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count after debounce: {(item.MediaStreams?.Count ?? 0)}");
+
+                var mediaStreams = item.GetMediaStreams();
+                var hasVideoOrAudio = mediaStreams?.Any(s => s.Type == MediaStreamType.Video || s.Type == MediaStreamType.Audio) == true;
+                var hasSubtitles = mediaStreams?.Any(s => s.Type == MediaStreamType.Subtitle) == true;
+
+                string medInfoPath = _everMediaService.GetMedInfoPath(item);
+                bool medInfoExists = _fileSystem.FileExists(medInfoPath);
+
+                _logger.Debug($"[EverMedia] EventListener: Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
+
+                // ✅ 字幕-only 场景：删除 .medinfo + 触发 probe
+                if (hasSubtitles && !hasVideoOrAudio && medInfoExists)
+                {
+                    _logger.Info($"[EverMedia] EventListener: Detected subtitle-only update for {item.Path}. Deleting .medinfo and triggering FFProbe to refresh full MediaInfo.");
+                    try
+                    {
+                        _fileSystem.DeleteFile(medInfoPath);
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        _logger.Error($"[EverMedia] EventListener: Failed to delete .medinfo file at {medInfoPath}: {deleteEx.Message}");
+                    }
+                    await TriggerFullProbeAsync(item);
+                    return;
+                }
+
+                // 原有逻辑：自愈
+                if (!hasVideoOrAudio && medInfoExists)
+                {
+                    _logger.Info($"[EverMedia] EventListener: Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
+                    await _everMediaService.RestoreAsync(item);
+                }
+                // 原有逻辑：机会性备份
+                else if (hasVideoOrAudio && !medInfoExists)
+                {
+                    _logger.Info($"[EverMedia] EventListener: Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
+                    await _everMediaService.BackupAsync(item);
+                }
+                else
+                {
+                    _logger.Debug($"[EverMedia] EventListener: ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasVideoOrAudio: {hasVideoOrAudio}, MedInfoExists: {medInfoExists}");
+                }
             }
-            // 原有逻辑：机会性备份
-            else if (hasVideoOrAudio && !medInfoExists)
-            {
-                _logger.Info($"[EverMedia] EventListener: Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
-                await _everMediaService.BackupAsync(item);
-            }
-            else
-            {
-                _logger.Debug($"[EverMedia] EventListener: ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasVideoOrAudio: {hasVideoOrAudio}, MedInfoExists: {medInfoExists}");
-            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemUpdated: {ex.Message}");
+            _logger.Debug(ex, "Stack trace for OnItemUpdated exception:");
         }
     }
 
@@ -162,9 +178,11 @@ public class EverMediaEventListener : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.Error($"[EverMedia] EventListener: Failed to trigger FFProbe for {item.Path}: {ex.Message}");
+            _logger.Debug(ex, "Stack trace for FFProbe failure:");
         }
     }
 
+    // ✅ 修正 DisposeAsync：移除 async，避免警告
     public ValueTask DisposeAsync()
     {
         foreach (var kvp in _debounceTokens)
@@ -175,14 +193,4 @@ public class EverMediaEventListener : IAsyncDisposable
         _debounceTokens.Clear();
         return ValueTask.CompletedTask;
     }
-
-    // public async ValueTask DisposeAsync()
-    // {
-    //     foreach (var kvp in _debounceTokens)
-    //     {
-    //         kvp.Value.Cancel();
-    //         kvp.Value.Dispose();
-    //     }
-    //     _debounceTokens.Clear();
-    // }
 }
