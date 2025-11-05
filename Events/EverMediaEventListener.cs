@@ -150,7 +150,7 @@ public class EverMediaEventListener : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemUpdated: {ex.Message}");
-            _logger.Debug(ex, "Stack trace for OnItemUpdated exception:");
+            _logger.Debug($"Stack trace for OnItemAdded exception: {ex}");
         }
     }
 
@@ -179,7 +179,7 @@ public class EverMediaEventListener : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.Error($"[EverMedia] EventListener: Failed to trigger FFProbe for {item.Path}: {ex.Message}");
-            _logger.Debug(ex, "Stack trace for FFProbe failure:");
+            _logger.Debug($"Stack trace for OnItemAdded exception: {ex}");
         }
     }
 
