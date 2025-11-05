@@ -44,11 +44,26 @@ public class Plugin : BasePluginSimpleUI<EverMediaConfig>, IHasThumbImage
     public static Plugin Instance { get; private set; } = null!; // 初始化为 null! 以避免未赋值警告
     
     // 添加这个 ThumbImage 属性
+    // public Stream GetThumbImage()
+    // {
+    //     var assembly = GetType().Assembly;
+    //     string resourceName = "EverMedia.EverMediaLogo.webp";        
+    //     return assembly.GetManifestResourceStream(resourceName);
+    // }
     public Stream GetThumbImage()
     {
         var assembly = GetType().Assembly;
-        string resourceName = "EverMedia.EverMediaLogo.webp";        
-        return assembly.GetManifestResourceStream(resourceName);
+        const string resourceName = "EverMedia.EverMediaLogo.webp";
+        var stream = assembly.GetManifestResourceStream(resourceName);
+        
+        if (stream == null)
+        {
+            throw new InvalidOperationException(
+                $"Failed to load embedded logo resource: '{resourceName}'. " +
+                "Check that the file is included as <EmbeddedResource> in EverMedia.csproj.");
+        }
+        
+        return stream;
     }
     public ImageFormat ThumbImageFormat => ImageFormat.Webp;
     
