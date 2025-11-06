@@ -1,5 +1,4 @@
 .gitignore
 *.bak
 *.bak*
-**/ .DS_Store
-.DS_Store
+**/.DS_Store
