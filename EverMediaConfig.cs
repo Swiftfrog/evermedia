@@ -1,49 +1,44 @@
 // Configuration/PluginConfiguration.cs
 using MediaBrowser.Model.Attributes;
-using Emby.Web.GenericEdit; // 包含 EditableOptionsBase
-using System.ComponentModel; // 可选，用于 DisplayName 和 Description
+using Emby.Web.GenericEdit;
+using System.ComponentModel;
 
 namespace EverMedia;
 
-public class EverMediaConfig : EditableOptionsBase // ✅ 继承 EditableOptionsBase
+public class EverMediaConfig : EditableOptionsBase
 {
-    // ✅ 实现 EditorTitle，作为 UI 上的主标题
+
     public override string EditorTitle => "EverMedia Settings";
 
-    [DisplayName("Backup Mode")]
-    [Description("Choose how to store .medinfo files. SideBySide: Next to the .strm file. Centralized: In a single specified root folder.")]
+    [DisplayName("备份模式")]
+    [Description("选择 .medinfo 文件的存储方式。SideBySide: 和.strm 文件放在同一目录下。Centralized: 存放在指定的单一根目录中。")]
     public BackupMode BackupMode { get; set; } = BackupMode.SideBySide;
 
-    [DisplayName("Centralized Root Path")]
-    [Description("Root folder path for storing .medinfo files when 'Centralized' mode is selected.")]
+    [DisplayName("集中存储根路径")]
+    [Description("当选择“集中存储”模式时，用于存放 .medinfo 文件的根文件夹路径。")]
     [EditFolderPicker]
     public string CentralizedRootPath { get; set; } = "";
 
-    [DisplayName("Enable Self-Healing")]
-    [Description("Automatically restore MediaInfo if it gets lost or cleared (e.g., after a metadata refresh).")]
+    [DisplayName("启用自动修复")]
+    [Description("当 MediaInfo 信息丢失或被清除时（例如在元数据刷新后），自动恢复。")]
     public bool EnableSelfHealing { get; set; } = true;
 
-    [DisplayName("Max Concurrency")]
-    [Description("Maximum number of concurrent operations for the bootstrap task.")]
+    [DisplayName("最大并发数")]
+    [Description("引导任务允许的最大并发操作数量。")]
     public int MaxConcurrency { get; set; } = 2;
 
-    [DisplayName("Bootstrap Task Rate Limit (Seconds)")]
-    [Description("Minimum interval in seconds between FFProbe calls during the bootstrap task to avoid overwhelming the HTTP server. Set to 0 to disable rate limiting.")] // 提供描述
+    [DisplayName("引导任务调用间隔（秒）")]
+    [Description("引导任务中两次 FFProbe 调用之间的最小间隔（秒），用于避免对 HTTP 服务器造成过大压力。设为 0 表示禁用限流。")]
     [MinValue(0), MaxValue(10)]
     public int BootstrapTaskRateLimitSeconds { get; set; } = 2;
 
-    [DisplayName("Enable Orphan Cleanup")]
-    [Description("Clean up .medinfo files that no longer have a corresponding .strm file.")]
-    public bool EnableOrphanCleanup { get; set; } = false;
+    // [DisplayName("启用孤立文件清理")]
+    // [Description("清理不再有对应 .strm 文件的 .medinfo 文件。")]
+    // public bool EnableOrphanCleanup { get; set; } = false;
 
-    [DisplayName("Last Bootstrap Task Run (UTC)")]
-    [Description("The UTC time when the MediaInfo Bootstrap Task last completed successfully. Used for incremental scanning. Modify manually with caution.")] // 提供描述，告知用户其用途和修改注意事项
+    [DisplayName("上次引导任务运行时间（UTC）")]
+    [Description("MediaInfo 引导任务上次成功完成的 UTC 时间，用于增量扫描。请谨慎手动修改此值。")]
     public DateTime? LastBootstrapTaskRun { get; set; } = null; // 初始值为 null
-
-//    [DisplayName("Log Level")]
-//    [Description("Minimum level for logging messages from this plugin.")]
-//    //public string LogLevel { get; set; } = "Info";
-//    public LogLevel LogLevel { get; set; } = LogLevel.Info;
 
 }
 
