@@ -18,7 +18,7 @@ public class EverMediaEntryPoint : IServerEntryPoint
     private readonly EverMediaEventListener _eventListener;
 
     // 构造函数：依赖注入 ILibraryManager, ILogger, 和 MediaInfoEventListener
-    public ServerEntryPoint(
+    public EverMediaEntryPoint(
         ILibraryManager libraryManager,
         ILogger logger,
         EverMediaEventListener eventListener // Emby DI 会自动创建并注入这个实例及其依赖 (MediaInfoService, ILogger)
