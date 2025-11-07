@@ -7,11 +7,11 @@ using EverMedia.Events; // 引入事件监听器
 
 namespace EverMedia;
 
-/// <summary>
 /// 插件的服务器端入口点。
 /// 负责在 Emby 启动时订阅事件，在关闭时取消订阅。
-/// </summary>
-public class ServerEntryPoint : IServerEntryPoint // 使用 IServerEntryPoint
+//public class ServerEntryPoint : IServerEntryPoint // 使用 IServerEntryPoint
+
+public class EverMediaEntryPoint : IServerEntryPoint
 {
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger _logger;
