@@ -41,6 +41,13 @@ public class EverMediaEventListener : IAsyncDisposable
     {
         try
         {
+	        var config = Plugin.Instance.Configuration;
+	        if (config == null || !config.EnablePlugin)
+	        {
+	            _logger.Debug($"[EverMedia] EventListener: Plugin is disabled. Ignoring ItemAdded event for {e.Item.Path}."); // 可选：记录日志
+	            return; // 如果插件被禁用，则不处理任何事件
+	        }
+            
             if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
             {
                 _logger.Info($"[EverMedia] EventListener: ItemAdded event triggered for .strm file: {item.Path}");
@@ -63,7 +70,6 @@ public class EverMediaEventListener : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemAdded: {ex.Message}");
-            //_logger.Debug(ex, "Stack trace for OnItemAdded exception:");
             _logger.Debug($"Stack trace for OnItemAdded exception: {ex}");
         }
     }
@@ -73,6 +79,13 @@ public class EverMediaEventListener : IAsyncDisposable
     {
         try
         {
+	        var config = Plugin.Instance.Configuration;
+	        if (config == null || !config.EnablePlugin)
+	        {
+	            _logger.Debug($"[EverMedia:EverMediaEventListener] Plugin is disabled. Ignoring ItemUpdated event for {e.Item.Path}."); // 可选：记录日志
+	            return; // 如果插件被禁用，则不处理任何事件
+	        }
+
             if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
             {
                 _logger.Debug($"[EverMedia] EventListener: ItemUpdated event received for .strm file: {item.Path} (ID: {item.Id}). MediaStreams count before debounce: {(item.MediaStreams?.Count ?? 0)}");
@@ -150,7 +163,7 @@ public class EverMediaEventListener : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemUpdated: {ex.Message}");
-            _logger.Debug($"Stack trace for OnItemAdded exception: {ex}");
+            _logger.Debug($"Stack trace for OnItemUpdated exception: {ex}");
         }
     }
 

@@ -1,4 +1,4 @@
-// Tasks/MediaInfoBootstrapTask.cs (Revised with config-based rate limiting using TimeSpan and corrected timestamp update)
+// Tasks/EverMediaBootstrapTask.cs
 using MediaBrowser.Controller.Entities; // BaseItem
 using MediaBrowser.Controller.Library; // ILibraryManager
 using MediaBrowser.Controller.Providers; // IProviderManager
@@ -40,7 +40,7 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
         IFileSystem fileSystem           // 用于 MetadataRefreshOptions
     )
     {
-        // ✅ 使用 logManager 为这个特定的类创建一个 logger 实例
+        // 使用 logManager 为这个特定的类创建一个 logger 实例
         _logger = logManager.GetLogger(GetType().Name);
         _libraryManager = libraryManager;
         _providerManager = providerManager;
@@ -79,15 +79,26 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     // ✅ 修正 2: 参数顺序从 (IProgress, CancellationToken) 改为 (CancellationToken, IProgress)
     public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
     {
-        _logger.Info("[EverMedia] BootstrapTask: Task execution started.");
-
-        // 获取插件配置
+        
         var config = Plugin.Instance.Configuration;
+        
+        // 检查配置是否存在
         if (config == null)
         {
-            _logger.Error("[EverMedia] BootstrapTask: Failed to get plugin configuration. Cannot proceed.");
-            return; // 配置获取失败，退出任务
+            _logger.Warn("[EverMedia] BootstrapTask: Plugin configuration is null. Skipping execution.");
+            progress?.Report(100);
+            return;
         }
+    
+        // 检查任务是否启用
+        if (!config.EnableBootstrapTask)
+        {
+            _logger.Info("[EverMedia] BootstrapTask: Task execution is disabled via configuration. Exiting.");
+            progress?.Report(100);
+            return;
+        }
+    
+        _logger.Info("[EverMedia] BootstrapTask: Task execution started.");
 
         // 记录任务开始时间，用于后续更新配置和查询
         var taskStartTime = DateTime.UtcNow;
