@@ -49,4 +49,4 @@ public class EverMediaConfig : EditableOptionsBase
 }
 
 public enum BackupMode { SideBySide, Centralized }
-public enum LogLevel { Debug, Info, Warn, Error }nfo, Warn, Error }
+// public enum LogLevel { Debug, Info, Warn, Error }
