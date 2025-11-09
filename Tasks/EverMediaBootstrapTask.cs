@@ -15,11 +15,9 @@ using EverMedia.Services; // 引入 MediaInfoService
 
 namespace EverMedia.Tasks; // 使用命名空间组织代码
 
-/// <summary>
-/// 计划任务：扫描并持久化 .strm 文件的 MediaInfo。
-/// 这是主动维护者，负责初始化和持续维护。
-/// </summary>
-public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask 接口
+// 计划任务：扫描并持久化 .strm 文件的 MediaInfo。
+// 这是主动维护者，负责初始化和持续维护。
+public class EverMediaBootstrapTask : IScheduledTask 
 {
     // --- 依赖注入的私有字段 ---
     private readonly ILogger _logger;
@@ -75,8 +73,6 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
     }
 
     // --- 核心执行方法 ---
-    // ✅ 修正 1: 方法名从 ExecuteAsync 改为 Execute
-    // ✅ 修正 2: 参数顺序从 (IProgress, CancellationToken) 改为 (CancellationToken, IProgress)
     public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
     {
         
@@ -206,7 +202,6 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
                         if (cancellationToken.IsCancellationRequested) return;
 
                         // --- Config-based Rate Limiting Logic (with thread-safe lock) ---
-                        // --- Config-based Rate Limiting Logic (with thread-safe lock) ---
                         if (rateLimitInterval > TimeSpan.Zero)
                         {
                             DateTimeOffset now;
@@ -316,8 +311,8 @@ public class EverMediaBootstrapTask : IScheduledTask // 实现 IScheduledTask �
             var totalProcessed = restoredCount + probedCount + skippedCount;
             _logger.Info($"[EverMedia] BootstrapTask: Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new meta {probedCount}, Skipped (already has metadata): {skippedCount}.");
 
-            // ✅ 修正：在任务成功完成后，记录一个稍晚于当前时间的时间戳作为下一次运行的基准
-            // ✅ 方案：硬编码增加 1 毫秒偏移量，确保下一次查询起点晚于本次任务结束时间
+            // 在任务成功完成后，记录一个稍晚于当前时间的时间戳作为下一次运行的基准·
+            // 硬编码增加 1 秒偏移量，确保下一次查询起点晚于本次任务结束时间
             var taskCompletionTime = DateTime.UtcNow.AddSeconds(1); // 记录并增加偏移
             Plugin.Instance.UpdateLastBootstrapTaskRun(taskCompletionTime); // 使用增加偏移后的时间更新配置
             _logger.Info($"[EverMedia] BootstrapTask: Last run timestamp updated to task completion time: {taskCompletionTime:O} via Plugin.Instance.");

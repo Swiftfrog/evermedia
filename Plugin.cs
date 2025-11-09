@@ -6,12 +6,11 @@ using MediaBrowser.Model.Drawing; // IHasThumbImage
 using MediaBrowser.Model.Tasks; // IScheduledTask
 using System;
 using System.Collections.Generic; // For IEnumerable
-//using EverMedia.Configuration;
+
 using EverMedia.Tasks; // 引入计划任务
 
 namespace EverMedia;
 
-//public class Plugin : BasePluginSimpleUI<PluginConfiguration> // ✅ 继承 BasePluginSimpleUI
 public class Plugin : BasePluginSimpleUI<EverMediaConfig>, IHasThumbImage
 {
     public override string Name => "EverMedia";

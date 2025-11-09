@@ -7,7 +7,6 @@ using EverMedia.Events; // 引入事件监听器
 
 namespace EverMedia;
 
-/// 插件的服务器端入口点。
 /// 负责在 Emby 启动时订阅事件，在关闭时取消订阅。
 //public class ServerEntryPoint : IServerEntryPoint // 使用 IServerEntryPoint
 
@@ -29,10 +28,8 @@ public class EverMediaEntryPoint : IServerEntryPoint
         _eventListener = eventListener;
     }
 
-    /// <summary>
     /// 当服务器启动时调用。
     /// 订阅 ILibraryManager 的事件。
-    /// </summary>
     public void Run() // ✅ 实现 IServerEntryPoint 的 Run 方法
     {
         _libraryManager.ItemAdded += _eventListener.OnItemAdded;
@@ -40,10 +37,8 @@ public class EverMediaEntryPoint : IServerEntryPoint
         _logger.Info("[EverMedia] Event handlers subscribed.");
     }
 
-    /// <summary>
     /// 当服务器关闭时调用。
     /// 取消订阅 ILibraryManager 的事件。
-    /// </summary>
     public void Dispose() // ✅ 实现 IDisposable 的 Dispose 方法 (IServerEntryPoint 继承了 IDisposable)
     {
         _libraryManager.ItemAdded -= _eventListener.OnItemAdded;
