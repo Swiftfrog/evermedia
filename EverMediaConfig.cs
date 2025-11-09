@@ -15,10 +15,10 @@ public class EverMediaConfig : EditableOptionsBase
 
     [DisplayName("启用引导任务")]
     [Description("启用或禁用计划任务（扫描并持久化 .strm 文件的 MediaInfo）。")]
-    public bool EnableBootstrapTask { get; set; } = true; // 默认启用
+    public bool EnableBootstrapTask { get; set; } = false; // 默认启用
 
     [DisplayName("备份模式")]
-    [Description("选择 .medinfo 文件的存储方式。SideBySide: 和.strm 文件放在同一目录下。Centralized: 存放在指定的单一根目录中。")]
+    [Description("选择 .medinfo 文件的存储方式。SideBySide: 和.strm 文件放在同一目录下。Centralized: 存放在指定的目录中。")]
     public BackupMode BackupMode { get; set; } = BackupMode.SideBySide;
 
     [DisplayName("集中存储根路径")]
@@ -36,7 +36,7 @@ public class EverMediaConfig : EditableOptionsBase
 
     [DisplayName("引导任务调用间隔（秒）")]
     [Description("引导任务中两次 FFProbe 调用之间的最小间隔（秒），用于避免对 HTTP 服务器造成过大压力。设为 0 表示禁用限流。")]
-    [Range(0, 10)] // 使用 Range 替代 MinValue/MaxValue
+    [MinValue(0), MaxValue(60)]
     public int BootstrapTaskRateLimitSeconds { get; set; } = 2;
 
     // [DisplayName("启用孤立文件清理");
