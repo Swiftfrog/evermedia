@@ -1,4 +1,3 @@
-#build.yml
 name: Build EverMedia Plugin
 
 on:
@@ -25,13 +24,11 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release
 
-    # ✅ 修正: 移除了不必要的 "Publish" 步骤。
-    # "dotnet build" 已经生成了我们需要的 DLL 文件。
-
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: EverMedia-Plugin
-        # 这个路径现在是完全正确的，它会从 build 命令的输出中找到 DLL。
+        name: EverMedia
         # path: ./bin/Release/netstandard2.0/EverMedia.dll
         path: ./bin/Release/net8.0/EverMedia.dll
+        if-no-files-found: error
+        retention-days: 7
