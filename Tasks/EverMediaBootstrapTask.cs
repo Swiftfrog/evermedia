@@ -1,30 +1,30 @@
 // Tasks/EverMediaBootstrapTask.cs
-using MediaBrowser.Controller.Entities; // BaseItem
-using MediaBrowser.Controller.Library; // ILibraryManager
-using MediaBrowser.Controller.Providers; // IProviderManager
-using MediaBrowser.Model.Entities; // LocationType
-using MediaBrowser.Model.IO; // For IFileSystem, DirectoryService
-using MediaBrowser.Model.Logging; // ILogger
-using MediaBrowser.Model.Tasks; // IScheduledTask, TaskTriggerInfo
-using System; // For Guid
-using System.Collections.Generic; // For IEnumerable
-using System.Threading; // For CancellationToken
-using System.Threading.Tasks; // For Task
-using System.Linq; // For Where, Any
-using EverMedia.Services; // 引入 MediaInfoService
+using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Providers;
+using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.IO;
+using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Tasks;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
 
-namespace EverMedia.Tasks; // 使用命名空间组织代码
+using EverMedia.Services;
+
+namespace EverMedia.Tasks;
 
 // 计划任务：扫描并持久化 .strm 文件的 MediaInfo。
 // 这是主动维护者，负责初始化和持续维护。
 public class EverMediaBootstrapTask : IScheduledTask 
 {
-    // --- 依赖注入的私有字段 ---
     private readonly ILogger _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly IProviderManager _providerManager;
     private readonly EverMediaService _everMediaService;
-    private readonly IFileSystem _fileSystem; // 注入 IFileSystem
+    private readonly IFileSystem _fileSystem;
 
     // --- 用于速率限制的线程安全锁 ---
     private readonly object _rateLimitLock = new();
@@ -68,7 +68,6 @@ public class EverMediaBootstrapTask : IScheduledTask
         //     TimeOfDayTicks = TimeSpan.FromHours(2).Ticks // 2 AM
         // };
 
-        // 当前设置：无默认触发器，任务仅可手动运行。
         return Array.Empty<TaskTriggerInfo>(); // 返回空集合
     }
 
@@ -77,8 +76,6 @@ public class EverMediaBootstrapTask : IScheduledTask
     {
         
         var config = Plugin.Instance.Configuration;
-        
-        // 检查配置是否存在
         if (config == null)
         {
             _logger.Warn("[EverMedia] BootstrapTask: Plugin configuration is null. Skipping execution.");
@@ -240,10 +237,10 @@ public class EverMediaBootstrapTask : IScheduledTask
                         // 检查是否存在 .medinfo 文件
                         string medInfoPath = _everMediaService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
 
-                        //if (System.IO.File.Exists(medInfoPath))
                         if (_fileSystem.FileExists(medInfoPath))
                         {
                             _logger.Info($"[EverMedia] BootstrapTask: Found .medinfo file for {item.Path}. Attempting restore.");
+                            
                             // 存在 .medinfo 文件：尝试恢复 (自愈)
                             var restoreResult = await _everMediaService.RestoreAsync(item);
                             if (restoreResult)
@@ -268,9 +265,8 @@ public class EverMediaBootstrapTask : IScheduledTask
                                 _logger.Info($"[EverMedia] BootstrapTask: No MediaInfo found for {item.Path} and no .medinfo file. Attempting probe.");
                                 // 没有 MediaStreams 且没有 .medinfo 文件：触发探测
                                 // 使用预先创建的 MetadataRefreshOptions 来触发探测
-
-                                // 调用 RefreshMetadata 来触发探测
                                 await item.RefreshMetadata(refreshOptions, cancellationToken);
+                                
                                 // 探测成功后，ItemUpdated 事件会被触发，EventListener 会处理备份
                                 probedCount++;
                                 _logger.Info($"[EverMedia] BootstrapTask: Probe initiated for {item.Path}. Event listener will handle backup if successful.");
@@ -331,7 +327,7 @@ public class EverMediaBootstrapTask : IScheduledTask
         {
             // 任务执行出错
             _logger.Error($"[EverMedia] BootstrapTask: Task execution failed: {ex.Message}");
-            _logger.Debug(ex.StackTrace); // 可选：记录详细堆栈
+            _logger.Debug(ex.StackTrace);
             // 注意：如果任务执行失败，通常也不应该更新 LastBootstrapTaskRun 时间戳。
             // 当前逻辑在异常时会抛出，不会执行到更新时间戳的部分。
             throw; // 重新抛出以正确标记任务状态

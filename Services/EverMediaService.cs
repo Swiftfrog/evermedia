@@ -28,7 +28,6 @@ public class EverMediaService
     private readonly IJsonSerializer _jsonSerializer;
     private readonly IServerApplicationHost _applicationHost;
 
-    // ✅ 缓存插件实例，避免重复遍历
     private Plugin? _cachedPlugin;
 
     public EverMediaService(
@@ -144,7 +143,6 @@ public class EverMediaService
                 Data = validSourcesWithChapters
             };
 
-            // SerializeToFile is synchronous; wrap in Task.Run to avoid blocking
             await Task.Run(() => _jsonSerializer.SerializeToFile(backupData, medInfoPath));
 
             _logger.Info($"[EverMedia] Service: Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
@@ -167,7 +165,7 @@ public class EverMediaService
         if (config == null)
         {
             _logger.Error("[EverMedia] Service: Failed to get plugin configuration for RestoreAsync.");
-            return Task.FromResult(false); // ✅ 正确：返回 Task<bool>
+            return Task.FromResult(false);
         }
     
         try
@@ -303,9 +301,7 @@ public class EverMediaService
                 }
             }
         }
-
-        // 默认：Side-by-side 模式
-        return Path.Combine(item.ContainingFolderPath, fileName);
+        return Path.Combine(item.ContainingFolderPath, fileName);  // 默认：Side-by-side 模式
     }
 
     // --- 内部 DTO 类 ---
