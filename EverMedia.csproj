@@ -3,23 +3,17 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <AssemblyVersion>25.10.28</AssemblyVersion>
-    <FileVersion>25.10.28</FileVersion>
+    <AssemblyName>EverMedia</AssemblyName>
+    <RootNamespace>EverMedia</RootNamespace>
+    <Version>25.11.11</Version>
     <IncludeSourceRevisionInInformationalVersion>true</IncludeSourceRevisionInInformationalVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- 关键设置：指定输出类型为库 (Library/DLL) -->
     <OutputType>Library</OutputType>
-    <!-- 关键设置：防止将 NuGet 包的依赖项复制到输出目录 -->
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <!-- 可选：设置生成的 DLL 文件名 -->
-    <AssemblyName>EverMedia</AssemblyName>
-    <!-- 可选：设置根命名空间 -->
-    <RootNamespace>EverMedia</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 引用 Emby 4.9.1.80 的核心包 -->
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.80" />
   </ItemGroup>
 
