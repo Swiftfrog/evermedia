@@ -2,13 +2,18 @@ name: Build EverMedia Plugin
 
 on:
   push:
-    branches: [ "main", "s*" ]
+    branches: [ "main" "d*" ]
+    tags: [ "v*" ]
   pull_request:
-    branches: [ "main" , "s*" ]
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: read
 
     steps:
     - uses: actions/checkout@v4
@@ -32,3 +37,15 @@ jobs:
         path: ./bin/Release/net8.0/EverMedia.dll
         if-no-files-found: error
         retention-days: 7
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')    # 这个 'if' 条件确保此步骤只在推送 tag 时运行
+      uses: softprops/action-gh-release@v2
+      with:
+        # 'files' 告诉 action 要上传哪个文件。
+        # 路径必须与你上面 build 和 upload-artifact 的路径一致
+        files: ./bin/Release/net8.0/EverMedia.dll
+        # (可选) 这会自动根据你的 commit 历史生成 Release Note
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}    # GITHUB_TOKEN 是自动提供的，用于授权 action 创建 release
