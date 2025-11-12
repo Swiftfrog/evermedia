@@ -1,5 +1,5 @@
 # 🎬 EverMedia — 智能 .strm 文件 MediaInfo 持久化插件
-> **Emby Plugin**
+**Emby Plugin**
 > **Emby 留存 .strm 文件的音视频与字幕信息，告别重复扫描、提升加载速度、自动修复损坏元数据。**
 
 ---
