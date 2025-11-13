@@ -2,6 +2,8 @@
 **Emby Plugin**
 > **持久化 .strm 文件的音视频与字幕信息，告别重复扫描、提升加载速度、自动修复损坏元数据。**
 
+![EverMediaLogo](https://raw.githubusercontent.com/Swiftfrog/swiftfrog.github.io/master/EverMediaLogo.webp)
+
 ---
 
 ## 功能亮点
