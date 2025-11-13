@@ -1,14 +1,12 @@
-# EverMedia — 智能 .strm 文件 MediaInfo 持久化插件
+# EverMedia
 **Emby Plugin**
-> **持久化 .strm 文件的音视频与字幕信息，告别重复扫描、提升加载速度、自动修复损坏元数据。**
+> **持久化 .strm 文件的音视频与字幕信息，告别重复扫描、提升加载速度、自动修复。**
 
 ![EverMediaLogo](https://raw.githubusercontent.com/Swiftfrog/swiftfrog.github.io/master/EverMediaLogo.webp)
 
 ---
 
-## 功能亮点
-
-EverMedia 是专为 **`.strm` 文件用户**（网盘、本地链接、网络流媒体、自制媒体库）打造的**智能元数据持久化插件**，核心功能包括：
+## 功能
 
 | 功能 | 说明 |
 |------|------|
@@ -54,14 +52,14 @@ EverMedia.dll 复制到 Emby下的config/plugins下
 
 | 选项 | 说明 |
 |------|------|
-| **启用插件** (`EnablePlugin`) | ✅ 开启后，监听 `.strm` 文件的添加/更新事件（推荐开启） |
+| **启用插件** (`EnablePlugin`) | ✅ 开启后，监听 `.strm` 文件，自动更新 `.medinfo`（推荐开启） |
 | **启用计划任务** (`EnableBootstrapTask`) | ✅ 开启后，计划任务可用。可以定期扫描并修复缺失的 `.medinfo` 文件或者手动扫描 |
-| **任务速率限制（秒）** (`BootstrapTaskRateLimitSeconds`) | 控制计划任务中 FFProbe 的最小间隔（如设为 `2`，每 2 秒最多执行一次） |
-| **并发数** (`MaxConcurrency`) | 同时处理的探测任务数量（建议：`1~4`，根据 CPU 性能调整） |
-| **备份模式** (`BackupMode`) | - `SideBySide`：`.medinfo` 文件与 `.strm` 同目录（默认）<br>- `Centralized`：统一存入指定目录（推荐 NAS 用户使用） |
+| **任务速率限制** (`BootstrapTaskRateLimitSeconds`) | 控制任务频率，防止网盘/网站封控 |
+| **多线程** (`MaxConcurrency`) | 根据网盘风控情况自行调整 |
+| **备份模式** (`BackupMode`) | - `SideBySide`：`.medinfo` 与 `.strm` 同目录（默认）<br>- `Centralized`： `.medinfo` 统一存入指定目录 |
 | **中心化存储路径** (`CentralizedRootPath`) | 仅在 `Centralized` 模式下生效，指定 `.medinfo` 统一存放目录（如 `/mnt/media/.evermedia/`） |
 
-> 💡 **建议配置**（新手）：  
+> **建议配置**：  
 > - 启用插件 ✅  
 > - 启用计划任务 ✅  ，首次安装建议手动执行一次计划任务。
 > - 速率限制：`2`  
@@ -148,4 +146,4 @@ EverMedia.dll 复制到 Emby下的config/plugins下
 - 在 GitHub 提交 [Issue](https://github.com/Swiftfrog/EverMedia/issues)  
 - 给项目点个 ⭐️，让更多人受益！
 
-> 🙏 感谢你使用 EverMedia —— 让你的媒体库，更智能、更稳定、更持久。
+> EverMedia —— 让你的媒体库，更智能、更稳定、更持久。
