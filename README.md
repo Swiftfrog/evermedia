@@ -56,7 +56,7 @@ EverMedia.dll 复制到 Emby下的config/plugins下
 | **启用计划任务** (`EnableBootstrapTask`) | ✅ 开启后，计划任务可用。可以定期扫描并修复缺失的 `.medinfo` 文件或者手动扫描 |
 | **任务速率限制** (`BootstrapTaskRateLimitSeconds`) | 控制任务频率，防止网盘/网站封控 |
 | **多线程** (`MaxConcurrency`) | 根据网盘风控情况自行调整 |
-| **备份模式** (`BackupMode`) | - `SideBySide`：`.medinfo` 与 `.strm` 同目录（默认）<br>- `Centralized`： `.medinfo` 统一存入指定目录 |
+| **备份模式** (`BackupMode`) | - `SideBySide`： `.medinfo` 与 `.strm` 同目录（默认）<br>- `Centralized`： `.medinfo` 统一存入指定目录 |
 | **中心化存储路径** (`CentralizedRootPath`) | 仅在 `Centralized` 模式下生效，指定 `.medinfo` 统一存放目录（如 `/mnt/media/.evermedia/`） |
 
 > **建议配置**：  
