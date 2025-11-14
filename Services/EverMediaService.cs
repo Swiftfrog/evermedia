@@ -17,7 +17,7 @@ using System.Collections.Generic;
 
 namespace EverMedia.Services;
 
-// 负责 .strm 文件 MediaInfo 的备份与恢复逻辑。
+// .strm 文件 MediaInfo 的备份与恢复逻辑。
 public class EverMediaService
 {
     private readonly ILogger _logger;
@@ -322,7 +322,6 @@ public class EverMediaService
             if (backupDto != null)
             {
                 _logger.Debug($"[EverMedia] Service: GetSavedExternalSubCount: Found {backupDto.ExternalSubtitleCount} saved external subs in {medInfoPath}.");
-                // 返回保存的计数 (如果是旧版本 .medinfo，默认为 0)
                 return backupDto.ExternalSubtitleCount;
             }
         }
