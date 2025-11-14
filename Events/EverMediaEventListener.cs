@@ -140,13 +140,13 @@ public class EverMediaEventListener : IAsyncDisposable
                         _logger.Info($"[EverMedia] EventListener: Subtitle count mismatch. Assuming subtitle change for '{item.Name ?? item.Path}'. Deleting stale .medinfo and triggering FFProbe.");
                         try
                         {
-                            _fileSystem.DeleteFile(medInfoPath);    // 删除.medinfo
+                            _fileSystem.DeleteFile(medInfoPath);    // 删除.medinfo，防止从旧的.medinfo恢复
                         }
                         catch (Exception deleteEx)
                         {
                             _logger.Error($"[EverMedia] EventListener: Failed to delete .medinfo file at {medInfoPath}: {deleteEx.Message}");
                         }
-                        await TriggerFullProbeAsync(item);
+                        await TriggerFullProbeAsync(item);    // 重新触发FFProbe
                     }
                     else
                     {
