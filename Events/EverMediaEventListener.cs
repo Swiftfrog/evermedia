@@ -25,6 +25,9 @@ public class EverMediaEventListener : IAsyncDisposable
     private readonly EverMediaService _everMediaService;
     private readonly IFileSystem _fileSystem;
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _debounceTokens = new();
+    private readonly ConcurrentDictionary<Guid, (int Count, DateTime LastAttempt)> _probeFailureTracker = new();
+    private readonly TimeSpan _probeFailureCooldown = TimeSpan.FromMinutes(5); // 5分钟
+    private const int _maxProbeRetries = 3;
 
     public EverMediaEventListener(
         ILogger logger,
@@ -50,26 +53,27 @@ public class EverMediaEventListener : IAsyncDisposable
             
             if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.Info($"[EverMedia] EventListener: ItemAdded event triggered for .strm file: {item.Name}");
+                _logger.Info($"[EverMedia] EventListener: ItemAdded event triggered for .strm file: '{item.Name ?? item.Path}' (ID: {item.Id})");
 
                 string medInfoPath = _everMediaService.GetMedInfoPath(item);
                 bool medInfoExists = _fileSystem.FileExists(medInfoPath);
 
                 if (medInfoExists)
                 {
-                    _logger.Info($"[EverMedia] EventListener: .medinfo file found for added item: {item.Name}. Attempting quick restore.");
+                    _logger.Info($"[EverMedia] EventListener: .medinfo file found for added item: '{item.Name ?? item.Path}' (ID: {item.Id}). Attempting quick restore.");
                     await _everMediaService.RestoreAsync(item);
                 }
                 else
                 {
-                    _logger.Info($"[EverMedia] EventListener: No .medinfo file found for added item: {item.Name}. Triggering FFProbe to fetch MediaInfo.");
+                    _logger.Info($"[EverMedia] EventListener: No .medinfo file found for added item: '{item.Name ?? item.Path}' (ID: {item.Id}). Triggering FFProbe to fetch MediaInfo.");
                     await TriggerFullProbeAsync(item);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemAdded: {ex.Message}");
+            string itemName = (e?.Item as BaseItem)?.Name ?? "Unknown";
+            _logger.Error($"[EverMedia] EventListener: Unhandled exception in OnItemAdded for '{itemName}': {ex.Message}");
             _logger.Debug($"Stack trace for OnItemAdded exception: {ex}");
         }
     }
@@ -154,6 +158,13 @@ public class EverMediaEventListener : IAsyncDisposable
                         _logger.Info($"[EverMedia] EventListener: Subtitle count matches for '{item.Name ?? item.Path}'. Performing fast self-heal restore.");
                         await _everMediaService.RestoreAsync(item);
                     }
+                    
+                    // ** 清理 **：如果项目被成功自愈 (场景 1b)，它就是健康的
+                    if (currentExternalCount == savedExternalCount)
+                    {
+                         _probeFailureTracker.TryRemove(item.Id, out _);
+                    }
+                    
                     return;
                 }
                 else if (hasVideoOrAudio && !medInfoExists)
@@ -161,12 +172,44 @@ public class EverMediaEventListener : IAsyncDisposable
                     // 场景 2 有media info但没有.mediainfo: 创建.medinfo，进行备份
                     _logger.Info($"[EverMedia] EventListener: Opportunity backup detected for '{item.Name ?? item.Path}' (ID: {item.Id}). Attempting backup.");
                     await _everMediaService.BackupAsync(item);
+                    _probeFailureTracker.TryRemove(item.Id, out _);    // ** 成功 **：在这里重置/移除计数器
                     return;
                 }
                 else if (!hasVideoOrAudio && !medInfoExists)
                 {
-                    // 场景 3 没有media info和.medinfo: 触发FFProbe
-                    _logger.Info($"[EverMedia] EventListener: V/A info is lost and no .medinfo backup exists for '{item.Name ?? item.Path}' (ID: {item.Id}). Triggering FFProbe to repopulate.");
+                    // 场景 3: 恢复失败 (即 FFProbe 失败了)
+                    var itemId = item.Id;
+                    var now = DateTime.UtcNow;
+                    var failureInfo = _probeFailureTracker.GetValueOrDefault(itemId, (0, DateTime.MinValue));
+                    
+                    int currentCount = failureInfo.Count;
+                    DateTime lastAttempt = failureInfo.LastAttempt;
+                
+                    // 检查是否在冷却期
+                    if (now - lastAttempt < _probeFailureCooldown)
+                    {
+                        // 在冷却期内
+                        if (currentCount >= _maxProbeRetries)
+                        {
+                            // 已达最大次数，跳出
+                            _logger.Warn($"[EverMedia] EventListener: Max probe retries ({_maxProbeRetries}) reached for '{item.Name ?? item.Path}'. In cooldown. Skipping FFProbe.");
+                            return; // **打破循环**
+                        }
+                    }
+                    else
+                    {
+                        // 冷却期已过，重置计数器
+                        _logger.Info($"[EverMedia] EventListener: FFProbe cooldown expired for '{item.Name ?? item.Path}'. Resetting retry count.");
+                        currentCount = 0;
+                    }
+                
+                    // 执行尝试
+                    currentCount++;
+                    _logger.Info($"[EverMedia] EventListener: V/A info is lost and no .medinfo backup exists for '{item.Name ?? item.Path}'. Attempt {currentCount}/{_maxProbeRetries}. Triggering FFProbe.");
+                
+                    // 更新计数器 *之前* 触发
+                    _probeFailureTracker.AddOrUpdate(itemId, (currentCount, now), (key, oldValue) => (currentCount, now));
+                    
                     await TriggerFullProbeAsync(item);
                     return;
                 }
@@ -174,6 +217,7 @@ public class EverMediaEventListener : IAsyncDisposable
                 {
                     // 场景 4: 一切正常
                     _logger.Debug($"[EverMedia] EventListener: Item is healthy '{item.Name ?? item.Path}' (ID: {item.Id}). (State: HasV/A={hasVideoOrAudio}, HasMedinfo={medInfoExists}). No action needed.");
+                    _probeFailureTracker.TryRemove(item.Id, out _);    // ** 清理冷却 **：如果项目恢复正常，也移除它的冷却标记
                 }
             }
         }
@@ -220,7 +264,10 @@ public class EverMediaEventListener : IAsyncDisposable
             kvp.Value.Cancel();
             kvp.Value.Dispose();
         }
+        
         _debounceTokens.Clear();
+        _probeFailureTracker.Clear(); // ✅ 清理失败计数器
+        
         return ValueTask.CompletedTask;
     }
 }
