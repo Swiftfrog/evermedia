@@ -135,8 +135,8 @@ public class EverMediaEventListener : IAsyncDisposable
                     int savedExternalCount = _everMediaService.GetSavedExternalSubCount(item);
 
                     // 2. 从 Emby 的 (可信的) API 中获取 *当前* 的外挂字幕数量
-                    int currentExternalCount = mediaStreams
-                        .Count(s => s.Type == MediaStreamType.Subtitle && s.IsExternal);
+                    int currentExternalCount = mediaStreams?
+                        .Count(s => s.Type == MediaStreamType.Subtitle && s.IsExternal) ?? 0;
 
                     _logger.Debug($"[EverMedia] EventListener: Comparing counts... SavedInMedinfo: {savedExternalCount}, CurrentFromGetMediaStreams: {currentExternalCount}");
 
