@@ -17,7 +17,6 @@ using EverMedia.Services;
 namespace EverMedia.Tasks;
 
 // 计划任务：扫描并持久化 .strm 文件的 MediaInfo。
-// 这是主动维护者，负责初始化和持续维护。
 public class EverMediaBootstrapTask : IScheduledTask 
 {
     private readonly ILogger _logger;
@@ -31,14 +30,13 @@ public class EverMediaBootstrapTask : IScheduledTask
 
     // --- 构造函数：接收依赖项 ---
     public EverMediaBootstrapTask(
-        ILogManager logManager,           // 请求日志管理器工厂
-        ILibraryManager libraryManager,   // 用于查询媒体库项目
-        IProviderManager providerManager, // 用于触发元数据刷新（探测）
-        EverMediaService everMediaService, // 用于执行备份和恢复逻辑
-        IFileSystem fileSystem           // 用于 MetadataRefreshOptions
+        ILogManager logManager,
+        ILibraryManager libraryManager,
+        IProviderManager providerManager,
+        EverMediaService everMediaService,
+        IFileSystem fileSystem
     )
     {
-        // 使用 logManager 为这个特定的类创建一个 logger 实例
         _logger = logManager.GetLogger(GetType().Name);
         _libraryManager = libraryManager;
         _providerManager = providerManager;
@@ -46,19 +44,14 @@ public class EverMediaBootstrapTask : IScheduledTask
         _fileSystem = fileSystem; // 保存注入的 IFileSystem
     }
 
-    // --- IScheduledTask 接口成员 ---
+    public string Name => "EverMedia Bootstrap Task";
 
-    public string Name => "EverMedia Bootstrap Task"; // 任务在 UI 中显示的名称
+    public string Key => "EverMediaBootstrapTask";
 
-    public string Key => "EverMediaBootstrapTask"; // 任务的唯一键
+    public string Description => "Scan and persist MediaInfo for .strm files.";
 
-    public string Description => "Scan and persist MediaInfo for .strm files."; // 任务描述
+    public string Category => "EverMedia";
 
-    public string Category => "EverMedia"; // 任务所属类别
-
-    // --- 获取默认触发器 ---
-    // 返回一个 TaskTriggerInfo 对象的集合，定义任务的默认运行计划。
-    // 如果返回空集合或 null，则任务默认不会自动运行，只能手动触发。
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
         // 示例：如果希望任务每天凌晨 2 点运行，可以这样配置：
@@ -83,7 +76,6 @@ public class EverMediaBootstrapTask : IScheduledTask
             return;
         }
     
-        // 检查任务是否启用
         if (!config.EnableBootstrapTask)
         {
             _logger.Info("[EverMedia] BootstrapTask: Task execution is disabled via configuration. Exiting.");
@@ -98,7 +90,7 @@ public class EverMediaBootstrapTask : IScheduledTask
 
         try
         {
-            // 1. 智能扫描：高效查询库中所有可能的 .strm 文件
+            // 智能扫描：高效查询库中所有可能的 .strm 文件
             // 使用 MinDateLastSaved 实现增量更新
             var lastRunTimestamp = config.LastBootstrapTaskRun;
             
@@ -127,11 +119,11 @@ public class EverMediaBootstrapTask : IScheduledTask
             _logger.Info($"[EverMedia] BootstrapTask: Found {strmItemsToProcess.Count} .strm files with metadata updated since last run to process.");
 
             // 计算总进度 (基于过滤后的列表)
-            var totalItems = strmItemsToProcess.Count; // List<T> 使用 .Count 属性
+            var totalItems = strmItemsToProcess.Count;
             if (totalItems == 0)
             {
                 _logger.Info("[EverMedia] BootstrapTask: No .strm files found with updated metadata since last run. Task completed.");
-                progress?.Report(100); // 报告 100% 进度
+                progress?.Report(100);
                 return;
             }
 
@@ -141,9 +133,8 @@ public class EverMediaBootstrapTask : IScheduledTask
             var skippedCount = 0;
 
             // --- Rate Limiting: Config-based delay using TimeSpan ---
-            // 从配置中读取速率限制间隔（单位：秒）
             var configRateLimitSeconds = config.BootstrapTaskRateLimitSeconds;
-            TimeSpan rateLimitInterval; // 定义 TimeSpan 变量
+            TimeSpan rateLimitInterval;
             if (configRateLimitSeconds <= 0)
             {
                 // 如果配置值 <= 0，则禁用速率限制
@@ -157,16 +148,15 @@ public class EverMediaBootstrapTask : IScheduledTask
                 _logger.Info($"[EverMedia] BootstrapTask: Rate limiting enabled: {rateLimitInterval.TotalSeconds} seconds interval between FFProbe calls.");
             }
 
-            var lastProbeStart = DateTimeOffset.MinValue; // Track the time the last probe started
+            var lastProbeStart = DateTimeOffset.MinValue;
 
             // --- Concurrency Control ---
-            var maxConcurrency = config.MaxConcurrency > 0 ? config.MaxConcurrency : 1; // 确保至少为 1
+            var maxConcurrency = config.MaxConcurrency > 0 ? config.MaxConcurrency : 1;
             using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
 
             // 使用自定义并发控制
             var tasks = new List<Task>();
 
-            // 使用注入的 IFileSystem 创建 DirectoryService，并配置 MetadataRefreshOptions
             var directoryService = new DirectoryService(_logger, _fileSystem);
             var refreshOptions = new MetadataRefreshOptions(directoryService)
             {
@@ -179,13 +169,12 @@ public class EverMediaBootstrapTask : IScheduledTask
                 EnableSubtitleDownloading = false // 不下载字幕
             };
 
-            foreach (var item in strmItemsToProcess) // 注意：循环对象改为过滤后的列表
+            foreach (var item in strmItemsToProcess)
             {
-                // 检查取消令牌
                 if (cancellationToken.IsCancellationRequested)
                 {
                     _logger.Info("[EverMedia] BootstrapTask: Task execution was cancelled during processing.");
-                    break; // 退出循环
+                    break;
                 }
 
                 // 等待并发信号量，控制同时运行的探测数
@@ -235,7 +224,7 @@ public class EverMediaBootstrapTask : IScheduledTask
                         _logger.Debug($"[EverMedia] BootstrapTask: Processing .strm file: {item.Path} (DateLastSaved: {item.DateLastSaved:O})");
 
                         // 检查是否存在 .medinfo 文件
-                        string medInfoPath = _everMediaService.GetMedInfoPath(item); // 直接调用 MediaInfoService 的公共方法
+                        string medInfoPath = _everMediaService.GetMedInfoPath(item);
 
                         if (_fileSystem.FileExists(medInfoPath))
                         {
@@ -256,6 +245,7 @@ public class EverMediaBootstrapTask : IScheduledTask
                         else
                         {
                             _logger.Debug($"[EverMedia] BootstrapTask: No .medinfo file found for {item.Path}.");
+                            
                             // 不存在 .medinfo 文件：检查是否已有 MediaStreams
                             // 使用 item.GetMediaStreams() 来获取最新状态，参考 MediaInfoEventListener
                             bool hasMediaInfo = item.GetMediaStreams()?.Any(i => i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio) ?? false;
@@ -283,14 +273,11 @@ public class EverMediaBootstrapTask : IScheduledTask
                     catch (Exception ex)
                     {
                         _logger.Error($"[EverMedia] BootstrapTask: Error processing item {item.Path}: {ex.Message}");
-                        _logger.Debug(ex.StackTrace); // 记录详细堆栈
+                        _logger.Debug(ex.StackTrace);
                     }
                     finally
                     {
-                        // 释放并发信号量
                         semaphore.Release();
-
-                        // 更新进度
                         Interlocked.Increment(ref processedCount);
                         var currentProgress = (double)processedCount / totalItems * 100.0;
                         progress?.Report(currentProgress);
@@ -303,7 +290,6 @@ public class EverMediaBootstrapTask : IScheduledTask
             // 等待所有任务完成
             await Task.WhenAll(tasks);
 
-            // 优化日志输出
             var totalProcessed = restoredCount + probedCount + skippedCount;
             _logger.Info($"[EverMedia] BootstrapTask: Task execution completed. Total .strm files processed: {totalProcessed}. Breakdown -> Restored from .medinfo: {restoredCount}, Probed for new meta {probedCount}, Skipped (already has metadata): {skippedCount}.");
 
@@ -316,21 +302,15 @@ public class EverMediaBootstrapTask : IScheduledTask
         }
         catch (OperationCanceledException)
         {
-            // 任务被取消
+            // 任务被取消，不应该更新 LastBootstrapTaskRun 时间戳
             _logger.Info("[EverMedia] BootstrapTask: Task execution was cancelled.");
-            // 注意：如果任务被取消，可能不应该更新 LastBootstrapTaskRun 时间戳，
-            // 因为任务并未成功完成。这取决于你希望如何定义“上次成功运行时间”。
-            // 当前逻辑在取消时不会执行到更新时间戳的部分。
-            throw; // 重新抛出以正确标记任务状态
+            throw;
         }
         catch (Exception ex)
         {
-            // 任务执行出错
             _logger.Error($"[EverMedia] BootstrapTask: Task execution failed: {ex.Message}");
             _logger.Debug(ex.StackTrace);
-            // 注意：如果任务执行失败，通常也不应该更新 LastBootstrapTaskRun 时间戳。
-            // 当前逻辑在异常时会抛出，不会执行到更新时间戳的部分。
-            throw; // 重新抛出以正确标记任务状态
+            throw;
         }
     }
 }

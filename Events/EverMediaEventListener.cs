@@ -44,8 +44,8 @@ public class EverMediaEventListener : IAsyncDisposable
 	        var config = Plugin.Instance.Configuration;
 	        if (config == null || !config.EnablePlugin)
 	        {
-	            _logger.Debug($"[EverMedia] EventListener: Plugin is disabled. Ignoring ItemAdded event for {e.Item.Path}."); // 可选：记录日志
-	            return; // 如果插件被禁用，则不处理任何事件
+	            _logger.Debug($"[EverMedia] EventListener: Plugin is disabled. Ignoring ItemAdded event for {e.Item.Path}.");
+	            return;
 	        }
             
             if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
@@ -82,8 +82,8 @@ public class EverMediaEventListener : IAsyncDisposable
 	        var config = Plugin.Instance.Configuration;
 	        if (config == null || !config.EnablePlugin)
 	        {
-	            _logger.Debug($"[EverMedia:EverMediaEventListener] Plugin is disabled. Ignoring ItemUpdated event for {e.Item.Path}."); // 可选：记录日志
-	            return; // 如果插件被禁用，则不处理任何事件
+	            _logger.Debug($"[EverMedia:EverMediaEventListener] Plugin is disabled. Ignoring ItemUpdated event for {e.Item.Path}.");
+	            return;
 	        }
 
             if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
@@ -126,7 +126,7 @@ public class EverMediaEventListener : IAsyncDisposable
 
                 _logger.Debug($"[EverMedia] EventListener: Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
 
-                // ✅ 字幕-only 场景：删除 .medinfo + 触发 probe
+                // 添加字幕 删除 .medinfo + 触发 probe
                 if (hasSubtitles && !hasVideoOrAudio && medInfoExists)
                 {
                     _logger.Info($"[EverMedia] EventListener: Detected subtitle-only update for {item.Path}. Deleting .medinfo and triggering FFProbe to refresh full MediaInfo.");
@@ -142,13 +142,13 @@ public class EverMediaEventListener : IAsyncDisposable
                     return;
                 }
 
-                // 原有逻辑：自愈
+                // 自愈
                 if (!hasVideoOrAudio && medInfoExists)
                 {
                     _logger.Info($"[EverMedia] EventListener: Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
                     await _everMediaService.RestoreAsync(item);
                 }
-                // 原有逻辑：机会性备份
+                // 机会性备份
                 else if (hasVideoOrAudio && !medInfoExists)
                 {
                     _logger.Info($"[EverMedia] EventListener: Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
@@ -196,7 +196,6 @@ public class EverMediaEventListener : IAsyncDisposable
         }
     }
 
-    // ✅ 修正 DisposeAsync：移除 async，避免警告
     public ValueTask DisposeAsync()
     {
         foreach (var kvp in _debounceTokens)

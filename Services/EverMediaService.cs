@@ -17,7 +17,7 @@ using System.Collections.Generic;
 
 namespace EverMedia.Services;
 
-// 核心服务：负责 .strm 文件 MediaInfo 的备份与恢复逻辑。
+// 负责 .strm 文件 MediaInfo 的备份与恢复逻辑。
 public class EverMediaService
 {
     private readonly ILogger _logger;
@@ -48,7 +48,6 @@ public class EverMediaService
         _applicationHost = applicationHost;
     }
 
-    // --- 缓存插件实例 ---
     private Plugin? GetPlugin()
     {
         return _cachedPlugin ??= _applicationHost.Plugins.OfType<Plugin>().FirstOrDefault();
@@ -64,7 +63,6 @@ public class EverMediaService
     {
         _logger.Info($"[EverMedia] Service: Starting BackupAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
 
-        // 在方法内部获取当前配置
         var config = GetConfiguration();
         if (config == null)
         {
@@ -89,7 +87,6 @@ public class EverMediaService
                 return false;
             }
             
-            // 获取章节
             var chapters = _itemRepository.GetChapters(item);
 
             var mediaSourcesWithChapters = mediaSources.Select(ms => new MediaSourceWithChapters
@@ -156,7 +153,7 @@ public class EverMediaService
         }
     }
 
-    // --- 核心方法：恢复 MediaInfo ---
+    // --- 恢复 MediaInfo ---
     public Task<bool> RestoreAsync(BaseItem item)
     {
         _logger.Info($"[EverMedia] Service: Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
@@ -254,7 +251,7 @@ public class EverMediaService
         }
     }
 
-    // --- 重构后的 GetMedInfoPath：支持多路径库 + 手动相对路径 ---
+    // --- GetMedInfoPath：支持多路径库 + 手动相对路径 ---
     public string GetMedInfoPath(BaseItem item)
     {
         if (string.IsNullOrEmpty(item.Path))
@@ -272,7 +269,6 @@ public class EverMediaService
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
             if (libraryOptions?.PathInfos != null)
             {
-                // 查找匹配的媒体库路径（大小写不敏感）
                 var matchingPathInfo = libraryOptions.PathInfos
                     .FirstOrDefault(pi => !string.IsNullOrEmpty(pi.Path) &&
                                           item.Path.StartsWith(pi.Path, StringComparison.OrdinalIgnoreCase));
@@ -282,7 +278,6 @@ public class EverMediaService
                     string baseLibraryPath = matchingPathInfo.Path;
                     string relativeDir = item.ContainingFolderPath;
 
-                    // 计算相对于媒体库根目录的路径
                     if (relativeDir.Length > baseLibraryPath.Length)
                     {
                         relativeDir = relativeDir.Substring(baseLibraryPath.Length)
@@ -290,7 +285,7 @@ public class EverMediaService
                     }
                     else
                     {
-                        relativeDir = string.Empty; // 文件在库根目录
+                        relativeDir = string.Empty;
                     }
 
                     string targetDir = string.IsNullOrEmpty(relativeDir)
@@ -301,10 +296,9 @@ public class EverMediaService
                 }
             }
         }
-        return Path.Combine(item.ContainingFolderPath, fileName);  // 默认：Side-by-side 模式
+        return Path.Combine(item.ContainingFolderPath, fileName);
     }
 
-    // --- 内部 DTO 类 ---
     private class BackupDto
     {
         public string? EmbyVersion { get; set; }
