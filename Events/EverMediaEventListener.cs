@@ -178,12 +178,15 @@ public class EverMediaEventListener : IAsyncDisposable
                 else if (!hasVideoOrAudio && !medInfoExists)
                 {
                     // 场景 3: 恢复失败 (即 FFProbe 失败了)
-                    var itemId = item.Id;
+                    // var itemId = item.Id;
                     var now = DateTime.UtcNow;
                     var failureInfo = _probeFailureTracker.GetValueOrDefault(itemId, (0, DateTime.MinValue));
                     
-                    int currentCount = failureInfo.Count;
-                    DateTime lastAttempt = failureInfo.LastAttempt;
+                    // int currentCount = failureInfo.Count;
+                    // DateTime lastAttempt = failureInfo.LastAttempt;
+                    // 使用解构来立即命名元组的元素
+                    // 这会创建 'currentCount' 和 'lastAttempt' 两个新变量
+                    (int currentCount, DateTime lastAttempt) = _probeFailureTracker.GetValueOrDefault(itemId, (0, DateTime.MinValue));
                 
                     // 检查是否在冷却期
                     if (now - lastAttempt < _probeFailureCooldown)
