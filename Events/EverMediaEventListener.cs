@@ -119,15 +119,14 @@ public class EverMediaEventListener : IAsyncDisposable
 
                 var mediaStreams = item.GetMediaStreams();
                 var hasVideoOrAudio = mediaStreams?.Any(s => s.Type == MediaStreamType.Video || s.Type == MediaStreamType.Audio) == true;
-                // var hasSubtitles = mediaStreams?.Any(s => s.Type == MediaStreamType.Subtitle) == true;
                 string medInfoPath = _everMediaService.GetMedInfoPath(item);
                 bool medInfoExists = _fileSystem.FileExists(medInfoPath);
 
-                // -----------------------------------------------------------
-                // 场景 1: 歧义状态 (V/A 丢失, 但备份存在)
-                // -----------------------------------------------------------
+                _logger.Debug($"[EverMedia] EventListener: Checking criteria for '{item.Name ?? item.Path}' (ID: {item.Id}). HasV/A: {hasVideoOrAudio}, HasMedinfo: {medInfoExists}");
+
                 if (!hasVideoOrAudio && medInfoExists)
                 {
+                    // 场景 1: 歧义状态
                     _logger.Info($"[EverMedia] EventListener: Ambiguous state (V/A loss, medinfo exists) for '{item.Name ?? item.Path}' (ID: {item.Id}). Comparing sub counts...");
                     
                     int savedExternalCount = _everMediaService.GetSavedExternalSubCount(item);
@@ -137,11 +136,11 @@ public class EverMediaEventListener : IAsyncDisposable
                 
                     if (currentExternalCount != savedExternalCount)
                     {
-                        // 场景 1a: 字幕变更
+                        // 场景 1a: 字幕变更，触发FFProbe
                         _logger.Info($"[EverMedia] EventListener: Subtitle count mismatch. Assuming subtitle change for '{item.Name ?? item.Path}'. Deleting stale .medinfo and triggering FFProbe.");
                         try
                         {
-                            _fileSystem.DeleteFile(medInfoPath);
+                            _fileSystem.DeleteFile(medInfoPath);    // 删除.medinfo
                         }
                         catch (Exception deleteEx)
                         {
@@ -151,37 +150,31 @@ public class EverMediaEventListener : IAsyncDisposable
                     }
                     else
                     {
-                        // 场景 1b: 常规自愈
+                        // 场景 1b: 从.medinfo恢复
                         _logger.Info($"[EverMedia] EventListener: Subtitle count matches for '{item.Name ?? item.Path}'. Performing fast self-heal restore.");
                         await _everMediaService.RestoreAsync(item);
                     }
-                    return; // 已经处理，退出
+                    return;
                 }
-
-                // -----------------------------------------------------------
-                // 场景 2: 机会性备份 (V/A 存在, 备份不存在)
-                // -----------------------------------------------------------
-                if (hasVideoOrAudio && !medInfoExists)
+                else if (hasVideoOrAudio && !medInfoExists)
                 {
+                    // 场景 2 有media info但没有.mediainfo: 创建.medinfo，进行备份
                     _logger.Info($"[EverMedia] EventListener: Opportunity backup detected for '{item.Name ?? item.Path}' (ID: {item.Id}). Attempting backup.");
                     await _everMediaService.BackupAsync(item);
                     return;
                 }
-                
-                // -----------------------------------------------------------
-                // 场景 3: 恢复失败 (V/A 丢失, 备份也不存在) <-- 你要的逻辑
-                // -----------------------------------------------------------
-                if (!hasVideoOrAudio && !medInfoExists)
+                else if (!hasVideoOrAudio && !medInfoExists)
                 {
+                    // 场景 3 没有media info和.medinfo: 触发FFProbe
                     _logger.Info($"[EverMedia] EventListener: V/A info is lost and no .medinfo backup exists for '{item.Name ?? item.Path}' (ID: {item.Id}). Triggering FFProbe to repopulate.");
                     await TriggerFullProbeAsync(item);
                     return;
                 }
-
-                // -----------------------------------------------------------
-                // 场景 4: 一切正常 (V/A 存在, 备份也存在)
-                // -----------------------------------------------------------
-                _logger.Debug($"[EverMedia] EventListener: Item is healthy '{item.Name ?? item.Path}' (ID: {item.Id}). (State: HasV/A={hasVideoOrAudio}, HasMedinfo={medInfoExists}). No action needed.");
+                else
+                {
+                    // 场景 4: 一切正常
+                    _logger.Debug($"[EverMedia] EventListener: Item is healthy '{item.Name ?? item.Path}' (ID: {item.Id}). (State: HasV/A={hasVideoOrAudio}, HasMedinfo={medInfoExists}). No action needed.");
+                }
             }
         }
         catch (Exception ex)
