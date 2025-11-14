@@ -119,44 +119,65 @@ public class EverMediaEventListener : IAsyncDisposable
 
                 var mediaStreams = item.GetMediaStreams();
                 var hasVideoOrAudio = mediaStreams?.Any(s => s.Type == MediaStreamType.Video || s.Type == MediaStreamType.Audio) == true;
-                var hasSubtitles = mediaStreams?.Any(s => s.Type == MediaStreamType.Subtitle) == true;
-
+                // var hasSubtitles = mediaStreams?.Any(s => s.Type == MediaStreamType.Subtitle) == true;
                 string medInfoPath = _everMediaService.GetMedInfoPath(item);
                 bool medInfoExists = _fileSystem.FileExists(medInfoPath);
 
-                _logger.Debug($"[EverMedia] EventListener: Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
-
-                // 添加字幕 删除 .medinfo + 触发 probe
-                if (hasSubtitles && !hasVideoOrAudio && medInfoExists)
-                {
-                    _logger.Info($"[EverMedia] EventListener: Detected subtitle-only update for {item.Path}. Deleting .medinfo and triggering FFProbe to refresh full MediaInfo.");
-                    try
-                    {
-                        _fileSystem.DeleteFile(medInfoPath);
-                    }
-                    catch (Exception deleteEx)
-                    {
-                        _logger.Error($"[EverMedia] EventListener: Failed to delete .medinfo file at {medInfoPath}: {deleteEx.Message}");
-                    }
-                    await TriggerFullProbeAsync(item);
-                    return;
-                }
-
-                // 自愈
+                // _logger.Debug($"[EverMedia] EventListener: Checking criteria for {item.Path}. HasVideoOrAudio: {hasVideoOrAudio}, HasSubtitles: {hasSubtitles}, MedInfoExists: {medInfoExists}");
+                // -----------------------------------------------------------
+                // 场景 1: V/A 丢失，且备份存在 (歧义状态)
+                // -----------------------------------------------------------
                 if (!hasVideoOrAudio && medInfoExists)
                 {
-                    _logger.Info($"[EverMedia] EventListener: Self-heal detected for item: {item.Path}. No MediaInfo, .medinfo exists. Attempting restore.");
-                    await _everMediaService.RestoreAsync(item);
+                    _logger.Info($"[EverMedia] EventListener: Ambiguous state detected (V/A loss with backup) for {item.Path}.");
+                    
+                    // 1. 从 .medinfo 文件中读取保存的计数
+                    int savedExternalCount = _everMediaService.GetSavedExternalSubCount(item);
+
+                    // 2. 从 Emby 的 (可信的) API 中获取 *当前* 的外挂字幕数量
+                    int currentExternalCount = mediaStreams
+                        .Count(s => s.Type == MediaStreamType.Subtitle && s.IsExternal);
+
+                    _logger.Debug($"[EverMedia] EventListener: Comparing counts... SavedInMedinfo: {savedExternalCount}, CurrentFromGetMediaStreams: {currentExternalCount}");
+
+                    // 3. 比较!
+                    if (currentExternalCount != savedExternalCount)
+                    {
+                        // **场景: 字幕变更 (添加或删除)**
+                        _logger.Info($"[EverMedia] EventListener: Subtitle count mismatch. Assuming subtitle change. Deleting stale .medinfo and triggering FFProbe.");
+                        try
+                        {
+                            _fileSystem.DeleteFile(medInfoPath);
+                        }
+                        catch (Exception deleteEx)
+                        {
+                            _logger.Error($"[EverMedia] EventListener: Failed to delete .medinfo file at {medInfoPath}: {deleteEx.Message}");
+                        }
+                        await TriggerFullProbeAsync(item);
+                    }
+                    else
+                    {
+                        // **场景: 常规自愈**
+                        _logger.Info($"[EverMedia] EventListener: Subtitle count matches. Performing fast self-heal restore.");
+                        await _everMediaService.RestoreAsync(item);
+                    }
+                    return; // 已经处理，退出
                 }
-                // 机会性备份
-                else if (hasVideoOrAudio && !medInfoExists)
+
+                // -----------------------------------------------------------
+                // 场景 2: 机会性备份
+                // -----------------------------------------------------------
+                if (hasVideoOrAudio && !medInfoExists)
                 {
                     _logger.Info($"[EverMedia] EventListener: Opportunity backup detected for item: {item.Path}. MediaInfo exists, .medinfo missing. Attempting backup.");
                     await _everMediaService.BackupAsync(item);
                 }
+                // -----------------------------------------------------------
+                // 场景 3: 一切正常
+                // -----------------------------------------------------------
                 else
                 {
-                    _logger.Debug($"[EverMedia] EventListener: ItemUpdated event for {item.Path} did not meet self-heal or backup criteria. HasVideoOrAudio: {hasVideoOrAudio}, MedInfoExists: {medInfoExists}");
+                    _logger.Debug($"[EverMedia] EventListener: ItemUpdated event for {item.Path} did not meet action criteria. (State: HasV/A={hasVideoOrAudio}, HasMedinfo={medInfoExists})");
                 }
             }
         }

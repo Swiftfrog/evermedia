@@ -133,10 +133,17 @@ public class EverMediaService
             var plugin = GetPlugin();
             var pluginVersionString = plugin?.Version.ToString() ?? "Unknown";
 
+            // 计算当前的外挂字幕数量
+            var allStreams = item.GetMediaStreams();
+            int externalSubCount = allStreams
+                .Count(s => s.Type == MediaStreamType.Subtitle && s.IsExternal);
+            _logger.Debug($"[EverMedia] Service: Found {externalSubCount} external subtitles to save in backup for {item.Path}");
+
             var backupData = new
             {
                 EmbyVersion = _applicationHost.ApplicationVersion.ToString(),
                 PluginVersion = pluginVersionString,
+                ExternalSubtitleCount = externalSubCount,
                 Data = validSourcesWithChapters
             };
 
@@ -261,7 +268,7 @@ public class EverMediaService
             return Path.Combine(fallbackDir, item.Id.ToString() + ".medinfo");
         }
 
-        var config = Plugin.Instance.Configuration;
+        var config = GetConfiguration() ?? new EverMediaConfig();
         string fileName = Path.GetFileNameWithoutExtension(item.Path) + ".medinfo";
 
         if (config.BackupMode == BackupMode.Centralized && !string.IsNullOrWhiteSpace(config.CentralizedRootPath))
@@ -299,10 +306,40 @@ public class EverMediaService
         return Path.Combine(item.ContainingFolderPath, fileName);
     }
 
+    // --- 从 .medinfo 读取外挂字幕计数 ---
+    public int GetSavedExternalSubCount(BaseItem item)
+    {
+        string medInfoPath = GetMedInfoPath(item);
+        if (!_fileSystem.FileExists(medInfoPath))
+        {
+            _logger.Debug($"[EverMedia] Service: GetSavedExternalSubCount: No medinfo file found for {item.Path}. Returning 0.");
+            return 0; // 没有备份文件，返回 0 (或 -1，如果你想区分)
+        }
+
+        try
+        {
+            var backupDto = _jsonSerializer.DeserializeFromFile<BackupDto>(medInfoPath);
+            if (backupDto != null)
+            {
+                _logger.Debug($"[EverMedia] Service: GetSavedExternalSubCount: Found {backupDto.ExternalSubtitleCount} saved external subs in {medInfoPath}.");
+                // 返回保存的计数 (如果是旧版本 .medinfo，默认为 0)
+                return backupDto.ExternalSubtitleCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[EverMedia] Service: Error deserializing {medInfoPath} in GetSavedExternalSubCount (maybe old version?): {ex.Message}");
+        }
+        
+        _logger.Warn($"[EverMedia] Service: GetSavedExternalSubCount: Failed to read or parse {medInfoPath}. Returning 0.");
+        return 0; 
+    }
+
     private class BackupDto
     {
         public string? EmbyVersion { get; set; }
         public string? PluginVersion { get; set; }
+        public int ExternalSubtitleCount { get; set; }
         public MediaSourceWithChapters[] Data { get; set; } = Array.Empty<MediaSourceWithChapters>();
     }
 
