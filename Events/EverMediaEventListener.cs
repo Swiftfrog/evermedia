@@ -188,7 +188,7 @@ public class EverMediaEventListener : IAsyncDisposable
                     // 重置熔断器，超过设置的重试次数，超过设定的时间间隔
                     if (currentCount >= maxRetries && (now - lastAttempt > resetInterval))
                     {
-                        _logger.Info($"[EverMedia] EventListener: Reset interval ({config.ProbeFailureResetMinutes}m) passed for '{item.Name ?? item.Path}'. Resetting failure count.");
+                        _logger.Info($"[EverMedia] EventListener: Reset interval ({config.FailureConfig.ProbeFailureResetMinutes}m) passed for '{item.Name ?? item.Path}'. Resetting failure count.");
                         currentCount = 0;
                     }
                 
