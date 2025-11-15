@@ -68,6 +68,8 @@ public class EverMediaConfig : EditableOptionsBase
 
 public class ProbeFailureConfig : EditableOptionsBase
 {
+    public override string EditorTitle => "Probe Failure Settings";
+    
     [DisplayName("FFProbe 最大重试次数")]
     [Description("当探测失败时，允许的最大自动重试次数。达到此限制后，插件将停止对该文件的自动探测，直到“失败重置时间”过去。")]
     [MinValue(1), MaxValue(10)]
@@ -81,6 +83,8 @@ public class ProbeFailureConfig : EditableOptionsBase
 
 public class ConcurrencyConfig : EditableOptionsBase
 {
+    public override string EditorTitle => "Concurrency Settings";
+    
     [DisplayName("计划任务-线程数量")]
     [Description("同时发起操作的最多任务数。例如：2，同时触发2个.strm执行，适用于批量任务。")]
     public int MaxConcurrency { get; set; } = 2;
