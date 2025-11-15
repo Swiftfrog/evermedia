@@ -30,6 +30,16 @@ public class EverMediaConfig : EditableOptionsBase
     [Description("当 MediaInfo 信息丢失或被清除时（例如在元数据刷新后），自动恢复。")]
     public bool EnableSelfHealing { get; set; } = true;
 
+    [DisplayName("FFProbe 最大重试次数")]
+    [Description("当探测失败时，允许的最大自动重试次数。达到此限制后，插件将停止对该文件的自动探测，直到“失败重置时间”过去。")]
+    [MinValue(1), MaxValue(10)]
+    public int MaxProbeRetries { get; set; } = 3;
+
+    [DisplayName("FFProbe 失败重置时间 (分钟)")]
+    [Description("当达到最大重试次数后，需要等待多久才能允许再次尝试。这防止了死循环，同时也允许在一段时间后（例如你修复文件并手动刷新后）自动重置熔断器。")]
+    [MinValue(1)]
+    public int ProbeFailureResetMinutes { get; set; } = 30;
+
     [DisplayName("最大并发数")]
     [Description("引导任务允许的最大并发操作数量。")]
     public int MaxConcurrency { get; set; } = 2;

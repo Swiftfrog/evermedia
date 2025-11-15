@@ -26,8 +26,9 @@ public class EverMediaEventListener : IAsyncDisposable
     private readonly IFileSystem _fileSystem;
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _debounceTokens = new();
     private readonly ConcurrentDictionary<Guid, (int Count, DateTime LastAttempt)> _probeFailureTracker = new();
-    private readonly TimeSpan _probeFailureCooldown = TimeSpan.FromMinutes(5); // 5分钟
-    private const int _maxProbeRetries = 3;
+    private readonly TimeSpan _shortTermRetryDelay = TimeSpan.FromSeconds(10);
+    // private readonly TimeSpan _probeFailureCooldown = TimeSpan.FromMinutes(5); // 5分钟
+    // private const int _maxProbeRetries = 3;
 
     public EverMediaEventListener(
         ILogger logger,
@@ -175,42 +176,45 @@ public class EverMediaEventListener : IAsyncDisposable
                     _probeFailureTracker.TryRemove(item.Id, out _);    // ** 成功 **：在这里重置/移除计数器
                     return;
                 }
+                // 场景 3: 恢复失败 (即 FFProbe 失败了)
                 else if (!hasVideoOrAudio && !medInfoExists)
                 {
-                    // 场景 3: 恢复失败 (即 FFProbe 失败了)
                     // var itemId = item.Id;
                     var now = DateTime.UtcNow;
-                    var failureInfo = _probeFailureTracker.GetValueOrDefault(itemId, (0, DateTime.MinValue));
                     
-                    // int currentCount = failureInfo.Count;
-                    // DateTime lastAttempt = failureInfo.LastAttempt;
-                    // 使用解构来立即命名元组的元素
-                    // 这会创建 'currentCount' 和 'lastAttempt' 两个新变量
+                    // 读取配置
+                    int maxRetries = config.MaxProbeRetries;
+                    TimeSpan resetInterval = TimeSpan.FromMinutes(config.ProbeFailureResetMinutes);
                     (int currentCount, DateTime lastAttempt) = _probeFailureTracker.GetValueOrDefault(itemId, (0, DateTime.MinValue));
                 
-                    // 检查是否在冷却期
-                    if (now - lastAttempt < _probeFailureCooldown)
+                    // --- 智能复位逻辑 ---
+                    // 如果距离上次尝试已经超过了配置的“重置时间”（例如 30 分钟）
+                    // 我们假设这是用户的新操作，重置熔断器
+                    if (currentCount >= maxRetries && (now - lastAttempt > resetInterval))
                     {
-                        // 在冷却期内
-                        if (currentCount >= _maxProbeRetries)
-                        {
-                            // 已达最大次数，跳出
-                            _logger.Warn($"[EverMedia] EventListener: Max probe retries ({_maxProbeRetries}) reached for '{item.Name ?? item.Path}'. In cooldown. Skipping FFProbe.");
-                            return; // **打破循环**
-                        }
-                    }
-                    else
-                    {
-                        // 冷却期已过，重置计数器
-                        _logger.Info($"[EverMedia] EventListener: FFProbe cooldown expired for '{item.Name ?? item.Path}'. Resetting retry count.");
+                        _logger.Info($"[EverMedia] EventListener: Reset interval ({config.ProbeFailureResetMinutes}m) passed for '{item.Name ?? item.Path}'. Resetting failure count.");
                         currentCount = 0;
                     }
                 
-                    // 执行尝试
-                    currentCount++;
-                    _logger.Info($"[EverMedia] EventListener: V/A info is lost and no .medinfo backup exists for '{item.Name ?? item.Path}'. Attempt {currentCount}/{_maxProbeRetries}. Triggering FFProbe.");
+                    // 1. 永久熔断检查
+                    if (currentCount >= maxRetries)
+                    {
+                        _logger.Debug($"[EverMedia] EventListener: Item '{item.Name ?? item.Path}' has failed probing {maxRetries} times. Ignoring (Manual fix required).");
+                        return; 
+                    }
                 
-                    // 更新计数器 *之前* 触发
+                    // 2. 短期冷却检查 (防止 1 秒内快速连击)
+                    // 这里使用硬编码的短间隔 (10秒)，而不是配置的长间隔
+                    if (now - lastAttempt < _shortTermRetryDelay)
+                    {
+                        _logger.Debug($"[EverMedia] EventListener: In short-term delay for '{item.Name ?? item.Path}'. Skipping.");
+                        return;
+                    }
+                
+                    // 3. 执行尝试
+                    currentCount++;
+                    _logger.Info($"[EverMedia] EventListener: V/A info is lost and no .medinfo backup exists for '{item.Name ?? item.Path}'. Attempt {currentCount}/{maxRetries}. Triggering FFProbe.");
+                
                     _probeFailureTracker.AddOrUpdate(itemId, (currentCount, now), (key, oldValue) => (currentCount, now));
                     
                     await TriggerFullProbeAsync(item);
@@ -251,7 +255,7 @@ public class EverMediaEventListener : IAsyncDisposable
         try
         {
             await item.RefreshMetadata(refreshOptions, CancellationToken.None);
-            _logger.Info($"[EverMedia] EventListener: FFProbe triggered successfully for {item.Name}.");
+            _logger.Info($"[EverMedia] FFProbe refresh request sent for {item.Name ?? item.Path}.");
         }
         catch (Exception ex)
         {
