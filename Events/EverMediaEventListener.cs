@@ -27,8 +27,6 @@ public class EverMediaEventListener : IAsyncDisposable
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _debounceTokens = new();
     private readonly ConcurrentDictionary<Guid, (int Count, DateTime LastAttempt)> _probeFailureTracker = new();
     private readonly TimeSpan _shortTermRetryDelay = TimeSpan.FromSeconds(10);
-    // private readonly TimeSpan _probeFailureCooldown = TimeSpan.FromMinutes(5); // 5分钟
-    // private const int _maxProbeRetries = 3;
 
     public EverMediaEventListener(
         ILogger logger,
@@ -87,7 +85,7 @@ public class EverMediaEventListener : IAsyncDisposable
 	        var config = Plugin.Instance.Configuration;
 	        if (config == null || !config.EnablePlugin)
 	        {
-	            _logger.Debug($"[EverMedia:EverMediaEventListener] Plugin is disabled. Ignoring ItemUpdated event for {e.Item.Name}.");
+	            _logger.Debug($"[EverMedia] EventListener: Plugin is disabled. Ignoring ItemUpdated event for {e.Item.Name}.");
 	            return;
 	        }
 
@@ -127,12 +125,12 @@ public class EverMediaEventListener : IAsyncDisposable
                 string medInfoPath = _everMediaService.GetMedInfoPath(item);
                 bool medInfoExists = _fileSystem.FileExists(medInfoPath);
 
-                _logger.Debug($"[EverMedia] EventListener: Checking criteria for '{item.Name ?? item.Path}' (ID: {item.Id}). HasV/A: {hasVideoOrAudio}, HasMedinfo: {medInfoExists}");
+                _logger.Debug($"[EverMedia] EventListener: Checking criteria for {item.Name ?? item.Path} (ID: {item.Id}). HasV/A: {hasVideoOrAudio}, HasMedinfo: {medInfoExists}");
 
                 if (!hasVideoOrAudio && medInfoExists)
                 {
                     // 场景 1: 歧义状态
-                    _logger.Info($"[EverMedia] EventListener: Ambiguous state (V/A loss, medinfo exists) for '{item.Name ?? item.Path}' (ID: {item.Id}). Comparing sub counts...");
+                    _logger.Info($"[EverMedia] EventListener: Ambiguous state (V/A loss, medinfo exists) for {item.Name ?? item.Path} (ID: {item.Id}). Comparing sub counts...");
                     
                     int savedExternalCount = _everMediaService.GetSavedExternalSubCount(item);
                     int currentExternalCount = mediaStreams?.Count(s => s.Type == MediaStreamType.Subtitle && s.IsExternal) ?? 0;
@@ -142,7 +140,7 @@ public class EverMediaEventListener : IAsyncDisposable
                     if (currentExternalCount != savedExternalCount)
                     {
                         // 场景 1a: 字幕变更，触发FFProbe
-                        _logger.Info($"[EverMedia] EventListener: Subtitle count mismatch. Assuming subtitle change for '{item.Name ?? item.Path}'. Deleting stale .medinfo and triggering FFProbe.");
+                        _logger.Info($"[EverMedia] EventListener: Subtitle count mismatch. Assuming subtitle change for {item.Name ?? item.Path}. Deleting stale .medinfo and triggering FFProbe.");
                         try
                         {
                             _fileSystem.DeleteFile(medInfoPath);    // 删除.medinfo，防止从旧的.medinfo恢复
@@ -151,7 +149,7 @@ public class EverMediaEventListener : IAsyncDisposable
                         {
                             _logger.Error($"[EverMedia] EventListener: Failed to delete .medinfo file at {medInfoPath}: {deleteEx.Message}");
                         }
-                        await TriggerFullProbeAsync(item);    // 重新触发FFProbe
+                        await TriggerFullProbeAsync(item);    // 重新触发FFProbe, 如果失败，会执行到场景3.
                     }
                     else
                     {
@@ -181,8 +179,10 @@ public class EverMediaEventListener : IAsyncDisposable
                 {
                     var now = DateTime.UtcNow;
                     
-                    int maxRetries = config.MaxProbeRetries;
-                    TimeSpan resetInterval = TimeSpan.FromMinutes(config.ProbeFailureResetMinutes);
+                    // int maxRetries = config.MaxProbeRetries;
+                    // TimeSpan resetInterval = TimeSpan.FromMinutes(config.ProbeFailureResetMinutes);
+                    int maxRetries = config.FailureConfig.MaxProbeRetries;
+                    TimeSpan resetInterval = TimeSpan.FromMinutes(config.FailureConfig.ProbeFailureResetMinutes);
                     (int currentCount, DateTime lastAttempt) = _probeFailureTracker.GetValueOrDefault(itemId, (0, DateTime.MinValue));
                 
                     // 重置熔断器，超过设置的重试次数，超过设定的时间间隔
