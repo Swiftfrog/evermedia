@@ -179,17 +179,13 @@ public class EverMediaEventListener : IAsyncDisposable
                 // 场景 3: 恢复失败 (即 FFProbe 失败了)
                 else if (!hasVideoOrAudio && !medInfoExists)
                 {
-                    // var itemId = item.Id;
                     var now = DateTime.UtcNow;
                     
-                    // 读取配置
                     int maxRetries = config.MaxProbeRetries;
                     TimeSpan resetInterval = TimeSpan.FromMinutes(config.ProbeFailureResetMinutes);
                     (int currentCount, DateTime lastAttempt) = _probeFailureTracker.GetValueOrDefault(itemId, (0, DateTime.MinValue));
                 
-                    // --- 智能复位逻辑 ---
-                    // 如果距离上次尝试已经超过了配置的“重置时间”（例如 30 分钟）
-                    // 我们假设这是用户的新操作，重置熔断器
+                    // 重置熔断器，超过设置的重试次数，超过设定的时间间隔
                     if (currentCount >= maxRetries && (now - lastAttempt > resetInterval))
                     {
                         _logger.Info($"[EverMedia] EventListener: Reset interval ({config.ProbeFailureResetMinutes}m) passed for '{item.Name ?? item.Path}'. Resetting failure count.");
@@ -203,21 +199,21 @@ public class EverMediaEventListener : IAsyncDisposable
                         return; 
                     }
                 
-                    // 2. 短期冷却检查 (防止 1 秒内快速连击)
+                    // 短期冷却检查 (防止 1 秒内快速连击)
                     TimeSpan timeSinceLast = now - lastAttempt;
                     
                     if (timeSinceLast < _shortTermRetryDelay)
                     {
                         _logger.Info($"[EverMedia] EventListener: Throttling retry for '{item.Name ?? item.Path}'. Waiting {(_shortTermRetryDelay - timeSinceLast).TotalSeconds:F1}s before next attempt...");
                         
-                        // *** 关键修改：不要 return，而是 await 等待 ***
+                        // await 等待
                         await Task.Delay(_shortTermRetryDelay - timeSinceLast);
                         
                         // 等待结束后，更新 'now' 时间，以便记录准确的尝试时间
                         now = DateTime.UtcNow; 
                     }
                 
-                    // 3. 执行尝试
+                    // 执行尝试
                     currentCount++;
                     _logger.Info($"[EverMedia] EventListener: V/A info is lost and no .medinfo backup exists for '{item.Name ?? item.Path}'. Attempt {currentCount}/{maxRetries}. Triggering FFProbe.");
                 
@@ -279,7 +275,7 @@ public class EverMediaEventListener : IAsyncDisposable
         }
         
         _debounceTokens.Clear();
-        _probeFailureTracker.Clear(); // ✅ 清理失败计数器
+        _probeFailureTracker.Clear();
         
         return ValueTask.CompletedTask;
     }
