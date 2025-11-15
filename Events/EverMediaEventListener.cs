@@ -196,7 +196,7 @@ public class EverMediaEventListener : IAsyncDisposable
                         currentCount = 0;
                     }
                 
-                    // 1. 永久熔断检查
+                    // 熔断检查
                     if (currentCount >= maxRetries)
                     {
                         _logger.Debug($"[EverMedia] EventListener: Item '{item.Name ?? item.Path}' has failed probing {maxRetries} times. Ignoring (Manual fix required).");
@@ -204,11 +204,17 @@ public class EverMediaEventListener : IAsyncDisposable
                     }
                 
                     // 2. 短期冷却检查 (防止 1 秒内快速连击)
-                    // 这里使用硬编码的短间隔 (10秒)，而不是配置的长间隔
-                    if (now - lastAttempt < _shortTermRetryDelay)
+                    TimeSpan timeSinceLast = now - lastAttempt;
+                    
+                    if (timeSinceLast < _shortTermRetryDelay)
                     {
-                        _logger.Debug($"[EverMedia] EventListener: In short-term delay for '{item.Name ?? item.Path}'. Skipping.");
-                        return;
+                        _logger.Info($"[EverMedia] EventListener: Throttling retry for '{item.Name ?? item.Path}'. Waiting {(_shortTermRetryDelay - timeSinceLast).TotalSeconds:F1}s before next attempt...");
+                        
+                        // *** 关键修改：不要 return，而是 await 等待 ***
+                        await Task.Delay(_shortTermRetryDelay - timeSinceLast);
+                        
+                        // 等待结束后，更新 'now' 时间，以便记录准确的尝试时间
+                        now = DateTime.UtcNow; 
                     }
                 
                     // 3. 执行尝试
