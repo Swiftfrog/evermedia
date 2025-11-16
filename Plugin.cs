@@ -14,7 +14,7 @@ namespace EverMedia;
 public class Plugin : BasePluginSimpleUI<EverMediaConfig>, IHasThumbImage
 {
     public override string Name => "EverMedia";
-    public override string Description => "Self-healing MediaInfo persistence for .strm files.";
+    public override string Description => "Managing STRM files: Persistence, backup, and repair";
     public override Guid Id => new Guid("7B921178-7C5B-42D6-BB7C-42E8B00C2C7D");
 
     public EverMediaConfig Configuration => GetOptions();

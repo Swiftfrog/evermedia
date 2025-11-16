@@ -17,7 +17,7 @@ using System.Collections.Generic;
 
 namespace EverMedia.Services;
 
-// 负责 .strm 文件 MediaInfo 的备份与恢复逻辑。
+// .strm 文件 MediaInfo 的备份与恢复逻辑。
 public class EverMediaService
 {
     private readonly ILogger _logger;
@@ -61,7 +61,7 @@ public class EverMediaService
     // --- 核心方法：备份 MediaInfo ---
     public async Task<bool> BackupAsync(BaseItem item)
     {
-        _logger.Info($"[EverMedia] Service: Starting BackupAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+        _logger.Info($"[EverMedia] Service: Starting BackupAsync for item: {item.Name ?? item.Path} (ID: {item.Id})");
 
         var config = GetConfiguration();
         if (config == null)
@@ -75,7 +75,7 @@ public class EverMediaService
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
             if (libraryOptions == null)
             {
-                _logger.Error($"[EverMedia] Service: Failed to get LibraryOptions for item: {item.Path ?? item.Name}. Cannot proceed with backup.");
+                _logger.Error($"[EverMedia] Service: Failed to get LibraryOptions for item: {item.Name ?? item.Path}. Cannot proceed with backup.");
                 return false;
             }
             
@@ -83,7 +83,7 @@ public class EverMediaService
             
             if (mediaSources == null || !mediaSources.Any())
             {
-                _logger.Info($"[EverMedia] Service: No MediaSources found for item: {item.Path ?? item.Name}. Skipping backup.");
+                _logger.Info($"[EverMedia] Service: No MediaSources found for item: {item.Name ?? item.Path}. Skipping backup.");
                 return false;
             }
             
@@ -98,7 +98,7 @@ public class EverMediaService
             var validSourcesWithChapters = mediaSourcesWithChapters.Where(swc => swc.MediaSourceInfo != null).ToList();
             if (!validSourcesWithChapters.Any())
             {
-                _logger.Warn($"[EverMedia] Service: All MediaSourceInfo objects were null for item: {item.Path ?? item.Name}. Skipping backup.");
+                _logger.Warn($"[EverMedia] Service: All MediaSourceInfo objects were null for item: {item.Name ?? item.Path}. Skipping backup.");
                 return false;
             }
 
@@ -133,21 +133,28 @@ public class EverMediaService
             var plugin = GetPlugin();
             var pluginVersionString = plugin?.Version.ToString() ?? "Unknown";
 
+            // 计算当前的外挂字幕数量
+            var allStreams = item.GetMediaStreams();
+            int externalSubCount = allStreams
+                .Count(s => s.Type == MediaStreamType.Subtitle && s.IsExternal);
+            _logger.Debug($"[EverMedia] Service: Found {externalSubCount} external subtitles to save in backup for {item.Name}");
+
             var backupData = new
             {
                 EmbyVersion = _applicationHost.ApplicationVersion.ToString(),
                 PluginVersion = pluginVersionString,
+                ExternalSubtitleCount = externalSubCount,
                 Data = validSourcesWithChapters
             };
 
             await Task.Run(() => _jsonSerializer.SerializeToFile(backupData, medInfoPath));
 
-            _logger.Info($"[EverMedia] Service: Backup completed for item: {item.Path ?? item.Name}. File written: {medInfoPath}");
+            _logger.Info($"[EverMedia] Service: Backup completed for item: {item.Name ?? item.Path}. File written: {medInfoPath}");
             return true;
         }
         catch (Exception ex)
         {
-            _logger.Error($"[EverMedia] Service: Error during BackupAsync for item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Error($"[EverMedia] Service: Error during BackupAsync for item {item.Name ?? item.Path}: {ex.Message}");
             _logger.Debug(ex.StackTrace);
             return false;
         }
@@ -156,7 +163,7 @@ public class EverMediaService
     // --- 恢复 MediaInfo ---
     public Task<bool> RestoreAsync(BaseItem item)
     {
-        _logger.Info($"[EverMedia] Service: Starting RestoreAsync for item: {item.Path ?? item.Name} (ID: {item.Id})");
+        _logger.Info($"[EverMedia] Service: Starting RestoreAsync for item: {item.Name ?? item.Path} (ID: {item.Id})");
     
         var config = GetConfiguration();
         if (config == null)
@@ -172,7 +179,7 @@ public class EverMediaService
     
             if (!_fileSystem.FileExists(medInfoPath))
             {
-                _logger.Info($"[EverMedia] Service: No medinfo file found for item: {item.Path ?? item.Name}. Path checked: {medInfoPath}");
+                _logger.Info($"[EverMedia] Service: No medinfo file found for item: {item.Name ?? item.Path}. Path checked: {medInfoPath}");
                 return Task.FromResult(false);
             }
     
@@ -228,7 +235,7 @@ public class EverMediaService
                 stream.Path = Path.Combine(item.ContainingFolderPath, stream.Path);
             }
     
-            _logger.Debug($"[EverMedia] Service: Saving {streamsToSave.Count} media streams for item: {item.Path ?? item.Name}");
+            _logger.Debug($"[EverMedia] Service: Saving {streamsToSave.Count} media streams for item: {item.Name ?? item.Path}");
             _itemRepository.SaveMediaStreams(item.InternalId, streamsToSave, CancellationToken.None);
     
             foreach (var chapter in chaptersToRestore)
@@ -236,16 +243,16 @@ public class EverMediaService
                 chapter.ImageTag = null;
             }
     
-            _logger.Debug($"[EverMedia] Service: Saving {chaptersToRestore.Count} chapters for item: {item.Path ?? item.Name}");
+            _logger.Debug($"[EverMedia] Service: Saving {chaptersToRestore.Count} chapters for item: {item.Name ?? item.Path}");
             _itemRepository.SaveChapters(item.InternalId, true, chaptersToRestore);
             _libraryManager.UpdateItem(item, item.Parent, ItemUpdateType.MetadataImport, null);
     
-            _logger.Info($"[EverMedia] Service: Restore completed successfully for item: {item.Path ?? item.Name}. File used: {medInfoPath}");
+            _logger.Info($"[EverMedia] Service: Restore completed successfully for item: {item.Name ?? item.Path}. File used: {medInfoPath}");
             return Task.FromResult(true);
         }
         catch (Exception ex)
         {
-            _logger.Error($"[EverMedia] Service: Error during RestoreAsync for item {item.Path ?? item.Name}: {ex.Message}");
+            _logger.Error($"[EverMedia] Service: Error during RestoreAsync for item {item.Name ?? item.Path}: {ex.Message}");
             _logger.Debug(ex.StackTrace);
             return Task.FromResult(false);
         }
@@ -261,7 +268,7 @@ public class EverMediaService
             return Path.Combine(fallbackDir, item.Id.ToString() + ".medinfo");
         }
 
-        var config = Plugin.Instance.Configuration;
+        var config = GetConfiguration() ?? new EverMediaConfig();
         string fileName = Path.GetFileNameWithoutExtension(item.Path) + ".medinfo";
 
         if (config.BackupMode == BackupMode.Centralized && !string.IsNullOrWhiteSpace(config.CentralizedRootPath))
@@ -299,10 +306,39 @@ public class EverMediaService
         return Path.Combine(item.ContainingFolderPath, fileName);
     }
 
+    // --- 从 .medinfo 读取外挂字幕计数 ---
+    public int GetSavedExternalSubCount(BaseItem item)
+    {
+        string medInfoPath = GetMedInfoPath(item);
+        if (!_fileSystem.FileExists(medInfoPath))
+        {
+            _logger.Debug($"[EverMedia] Service: GetSavedExternalSubCount: No medinfo file found for {item.Name}. Returning 0.");
+            return 0; // 没有备份文件，返回 0 (或 -1，如果你想区分)
+        }
+
+        try
+        {
+            var backupDto = _jsonSerializer.DeserializeFromFile<BackupDto>(medInfoPath);
+            if (backupDto != null)
+            {
+                _logger.Debug($"[EverMedia] Service: GetSavedExternalSubCount: Found {backupDto.ExternalSubtitleCount} saved external subs in {medInfoPath}.");
+                return backupDto.ExternalSubtitleCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[EverMedia] Service: Error deserializing {medInfoPath} in GetSavedExternalSubCount (maybe old version?): {ex.Message}");
+        }
+        
+        _logger.Warn($"[EverMedia] Service: GetSavedExternalSubCount: Failed to read or parse {medInfoPath}. Returning 0.");
+        return 0; 
+    }
+
     private class BackupDto
     {
         public string? EmbyVersion { get; set; }
         public string? PluginVersion { get; set; }
+        public int ExternalSubtitleCount { get; set; }
         public MediaSourceWithChapters[] Data { get; set; } = Array.Empty<MediaSourceWithChapters>();
     }
 

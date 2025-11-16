@@ -133,7 +133,8 @@ public class EverMediaBootstrapTask : IScheduledTask
             var skippedCount = 0;
 
             // --- Rate Limiting: Config-based delay using TimeSpan ---
-            var configRateLimitSeconds = config.BootstrapTaskRateLimitSeconds;
+            // var configRateLimitSeconds = config.BootstrapTaskRateLimitSeconds;
+            var configRateLimitSeconds = config.TaskConfig.BootstrapTaskRateLimitSeconds;
             TimeSpan rateLimitInterval;
             if (configRateLimitSeconds <= 0)
             {
@@ -151,7 +152,8 @@ public class EverMediaBootstrapTask : IScheduledTask
             var lastProbeStart = DateTimeOffset.MinValue;
 
             // --- Concurrency Control ---
-            var maxConcurrency = config.MaxConcurrency > 0 ? config.MaxConcurrency : 1;
+            // var maxConcurrency = config.MaxConcurrency > 0 ? config.MaxConcurrency : 1;
+            var maxConcurrency = config.TaskConfig.MaxConcurrency > 0 ? config.TaskConfig.MaxConcurrency : 1;
             using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
 
             // 使用自定义并发控制
