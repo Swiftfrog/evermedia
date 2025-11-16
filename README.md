@@ -1,6 +1,6 @@
 # EverMedia
-**Emby Plugin**
-> **持久化 .strm 文件的音视频与字幕信息，告别重复扫描、提升加载速度、自动修复。**
+> **Emby Plugin**
+### **持久化 .strm 文件的音视频与字幕信息, 支持自动修复。告别重复扫描，提升加载速度。**
 
 ![EverMediaLogo](https://raw.githubusercontent.com/Swiftfrog/swiftfrog.github.io/master/EverMediaLogo.webp)
 
@@ -15,7 +15,7 @@
 |  **字幕变更自动修复** | 添加删除字幕后，自动更新media info。 |
 |  **自愈能力** | 自动从 `.medinfo` 恢复，无需手动刷新。 |
 |  **支持中心化存储** | 可将所有 `.medinfo` 文件统一存放在指定目录 |
-|  **可关闭任务/插件** | 可独立启用/禁用“事件监听”和“计划任务”，灵活控制资源消耗。 |
+|  **自定义设置** | 可独立启用/禁用/参数设置等，灵活控制资源消耗。 |
 |  **多线程设置** | 配置线程数量和执行 FFProbe 间隔，避免高并发导致风控。 |
 |  **增量扫描** | 计划任务只扫描“上次运行后修改过”的 `.strm` 文件，效率极高。 |
 
@@ -53,8 +53,11 @@ EverMedia.dll 复制到 Emby下的config/plugins下
 | 选项 | 说明 |
 |------|------|
 | **启用插件** (`EnablePlugin`) | ✅ 开启后，监听 `.strm` 文件，自动更新 `.medinfo`（推荐开启） |
-| **启用计划任务** (`EnableBootstrapTask`) | ✅ 开启后，计划任务可用。可以定期扫描并修复缺失的 `.medinfo` 文件或者手动扫描 |
-| **任务速率限制** (`BootstrapTaskRateLimitSeconds`) | 控制任务频率，防止网盘/网站封控 |
+| **启用计划任务** (`EnableBootstrapTask`) | ✅ 开启后，计划任务方可使用。执行扫库任务特别耗费资源，避免误操作，所以添加此开关。 |
+| **备份模式** (`BackupMode`) | - `SideBySide`： `.medinfo` 与 `.strm` 同目录（默认）<br>- `Centralized`： `.medinfo` 统一存入指定目录 |
+| **上次任务运行时间UTC**|任务运行后，自动记录时间。非必要不操作。<br>如果想扫描某个时间段后添加的媒体项目或者重新扫描，可以根据时间自行设定。|
+|||
+| **任务速率限制** (`BootstrapTaskRateLimitSeconds`) | 控制任务的线程数和访问频率，防止网盘/网站封控，请根据自己的情况自行定义。 |
 | **多线程** (`MaxConcurrency`) | 根据主机性能和网盘风控情况自行调整 |
 | **备份模式** (`BackupMode`) | - `SideBySide`： `.medinfo` 与 `.strm` 同目录（默认）<br>- `Centralized`： `.medinfo` 统一存入指定目录 |
 
