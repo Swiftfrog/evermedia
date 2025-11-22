@@ -152,7 +152,7 @@ Go to: **Dashboard → Plugins → EverMedia**
 
   * **Repo**: [https://github.com/Swiftfrog/EverMedia](https://github.com/Swiftfrog/EverMedia)
   * **Contribution**: Issues and Pull Requests are welcome.
-  * **License**: [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) Any distribution...
+  * **License**: [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) Any distribution based on this code (including commercial use) must open source the full code under the same license.
   * **Dependencies**: Emby Server 4.9.1.90, .NET 8
 
 -----
