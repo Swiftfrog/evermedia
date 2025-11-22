@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="EverMediaLogo.webp" />
+    <EmbeddedResource Include="EverMediaLogo.png" />
   </ItemGroup>
 
 </Project>

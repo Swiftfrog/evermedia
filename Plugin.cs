@@ -51,6 +51,6 @@ public class Plugin : BasePluginSimpleUI<EverMediaConfig>, IHasThumbImage
         
         return stream;
     }
-    public ImageFormat ThumbImageFormat => ImageFormat.Webp;
+    public ImageFormat ThumbImageFormat => ImageFormat.Png;
     
 }
