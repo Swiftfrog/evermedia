@@ -127,9 +127,9 @@ public class EverMediaEventListener : IAsyncDisposable
 
                 _logger.Debug($"[EverMedia] EventListener: Checking criteria for {item.Name ?? item.Path} (ID: {item.Id}). HasV/A: {hasVideoOrAudio}, HasMedinfo: {medInfoExists}");
 
+                // 场景 1: 歧义状态
                 if (!hasVideoOrAudio && medInfoExists)
                 {
-                    // 场景 1: 歧义状态
                     _logger.Info($"[EverMedia] EventListener: Ambiguous state (V/A loss, medinfo exists) for {item.Name ?? item.Path} (ID: {item.Id}). Comparing sub counts...");
                     
                     int savedExternalCount = _everMediaService.GetSavedExternalSubCount(item);
@@ -166,15 +166,16 @@ public class EverMediaEventListener : IAsyncDisposable
                     
                     return;
                 }
+                /// 场景 2 有media info但没有.mediainfo: 创建.medinfo，进行备份
                 else if (hasVideoOrAudio && !medInfoExists)
                 {
-                    // 场景 2 有media info但没有.mediainfo: 创建.medinfo，进行备份
+                    
                     _logger.Info($"[EverMedia] EventListener: Opportunity backup detected for '{item.Name ?? item.Path}' (ID: {item.Id}). Attempting backup.");
                     await _everMediaService.BackupAsync(item);
                     _probeFailureTracker.TryRemove(item.Id, out _);    // ** 成功 **：在这里重置/移除计数器
                     return;
                 }
-                // 场景 3: 恢复失败 (即 FFProbe 失败了)
+                /// 场景 3: 恢复失败 (即 FFProbe 失败了)
                 else if (!hasVideoOrAudio && !medInfoExists)
                 {
                     var now = DateTime.UtcNow;
@@ -222,9 +223,9 @@ public class EverMediaEventListener : IAsyncDisposable
                     await TriggerFullProbeAsync(item);
                     return;
                 }
+                /// 场景 4: 一切正常
                 else
                 {
-                    // 场景 4: 一切正常
                     _logger.Debug($"[EverMedia] EventListener: Item is healthy '{item.Name ?? item.Path}' (ID: {item.Id}). (State: HasV/A={hasVideoOrAudio}, HasMedinfo={medInfoExists}). No action needed.");
                     _probeFailureTracker.TryRemove(item.Id, out _);    // ** 清理冷却 **：如果项目恢复正常，也移除它的冷却标记
                 }
@@ -237,9 +238,7 @@ public class EverMediaEventListener : IAsyncDisposable
         }
     }
 
-    /// <summary>
     /// 触发一次完整的远程媒体探测（FFProbe），用于获取音视频和字幕流。
-    /// </summary>
     private async Task TriggerFullProbeAsync(BaseItem item)
     {
         var directoryService = new DirectoryService(_logger, _fileSystem);
