@@ -6,7 +6,7 @@
 
 ### **Persist `.strm` metadata, support auto-repair, and accelerate playback speed.**
 
-![EverMediaLogo](https://raw.githubusercontent.com/Swiftfrog/swiftfrog.github.io/master/EverMediaLogo.webp)
+![EverMediaLogo](https://raw.githubusercontent.com/Swiftfrog/swiftfrog.github.io/master/EverMediaLogo.png)
 
 -----
 
