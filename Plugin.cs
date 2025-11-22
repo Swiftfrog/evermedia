@@ -40,7 +40,7 @@ public class Plugin : BasePluginSimpleUI<EverMediaConfig>, IHasThumbImage
     public Stream GetThumbImage()
     {
         var assembly = GetType().Assembly;
-        const string resourceName = "EverMedia.EverMediaLogo.webp";
+        const string resourceName = "EverMedia.EverMediaLogo.png";
         var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream == null)
         {
