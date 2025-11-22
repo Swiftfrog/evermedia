@@ -1,7 +1,9 @@
  **中文说明** | [English](README_EN.md)
 
 # EverMedia
+
 > **Emby Plugin**
+
 ### **持久化 .strm 文件的音视频与字幕信息, 支持自动修复。告别重复扫描，提升加载速度。**
 
 ![EverMediaLogo](https://raw.githubusercontent.com/Swiftfrog/swiftfrog.github.io/master/EverMediaLogo.png)
@@ -11,10 +13,10 @@
 ## 功能
 
 | 功能 | 说明 |
-|------|------|
+|----------|------|
 |  **自动备份** | 当 `.strm` 文件被扫描或更新时，自动将音视频流、字幕、时长、分辨率等信息保存到 `.medinfo` 文件中。 |
 |  **自愈能力** | 自动从 `.medinfo` 恢复，无需手动刷新。 |
-|  **字幕变更修复** | 添加/删除字幕后，自动更新media info。 |
+|  **自动更新字幕** | **添加/删除字幕后，自动更新media info。无需手动。** |
 |  **支持中心化存储** | 可将所有 `.medinfo` 文件统一存放在指定目录 |
 |  **自定义设置** | 可独立启用/禁用/参数设置等，灵活控制资源消耗。 |
 |  **多线程设置** | 配置线程数量和执行 FFProbe 间隔，避免高并发导致风控。 |
