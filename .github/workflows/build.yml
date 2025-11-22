@@ -2,7 +2,7 @@ name: Build EverMedia Plugin
 
 on:
   push:
-    branches: [ "d*" ]
+    branches: [ "main", "d*" ]
     tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
