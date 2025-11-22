@@ -91,7 +91,7 @@ public class EverMediaEventListener : IAsyncDisposable
 
             if (e.Item is BaseItem item && item.Path != null && item.Path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.Debug($"[EverMedia] EventListener: ItemUpdated event received for .strm file: {item.Name} (ID: {item.Id}).");
+                _logger.Debug($"[EverMedia] EventListener: ItemUpdated debounce received for .strm file: {item.Name} (ID: {item.Id}).");
 
                 var itemId = item.Id;
                 if (_debounceTokens.TryGetValue(itemId, out var existingCts))
