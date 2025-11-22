@@ -1,4 +1,4 @@
-// EverMediaConfig.cs
+// EverMediaConfig.cs - EN
 using MediaBrowser.Model.Attributes;
 using Emby.Web.GenericEdit;
 using System.ComponentModel;
@@ -9,59 +9,36 @@ public class EverMediaConfig : EditableOptionsBase
 {
     public override string EditorTitle => "EverMedia Settings";
 
-    [DisplayName("启用插件")]
-    [Description("启用或禁用插件的核心功能（实时监听 .strm 文件变化）。")]
-    public bool EnablePlugin { get; set; } = true; // 默认启用
+    [DisplayName("Enable Plugin")]
+    [Description("Enable or disable the plugin's real-time monitoring of .strm file changes.")]
+    public bool EnablePlugin { get; set; } = false; // Default disabled
 
-    [DisplayName("启用引导任务")]
-    [Description("启用或禁用计划任务（扫描并持久化 .strm 文件的 MediaInfo）。")]
-    public bool EnableBootstrapTask { get; set; } = false; // 默认启用
+    [DisplayName("Enable Bootstrap Task")]
+    [Description("Enable or disable the scheduled task (scan and persist .strm file MediaInfo).")]
+    public bool EnableBootstrapTask { get; set; } = false; // Default disabled
 
-    [DisplayName("备份模式")]
-    [Description("选择 .medinfo 文件的存储方式。SideBySide: 和.strm 文件放在同一目录下。Centralized: 存放在指定的目录中。")]
+    [DisplayName("Backup Mode")]
+    [Description("Choose .medinfo files are stored. SideBySide: Same path as .strm files. Centralized: In a specified path.")]
     public BackupMode BackupMode { get; set; } = BackupMode.SideBySide;
 
-    [DisplayName("集中存储路径")]
-    [Description("当选择“集中存储”模式时，用于存放 .medinfo 文件的根文件夹路径。")]
+    [DisplayName("Centralized Storage Path")]
+    [Description("When 'Centralized' mode, path for storing .medinfo files.")]
     [EditFolderPicker]
     public string CentralizedRootPath { get; set; } = "";
 
-    // [DisplayName("FFProbe 最大重试次数")]
-    // [Description("当探测失败时，允许的最大自动重试次数。达到此限制后，插件将停止对该文件的自动探测，直到“失败重置时间”过去。")]
-    // [MinValue(1), MaxValue(10)]
-    // public int MaxProbeRetries { get; set; } = 3;
-// 
-    // [DisplayName("FFProbe 失败重置时间 (分钟)")]
-    // [Description("当达到最大重试次数后，需要等待多久才能允许再次尝试。防止死循环，允许在一段时间后，自动重置。")]
-    // [MinValue(1)]
-    // public int ProbeFailureResetMinutes { get; set; } = 30;
-// 
-    // [DisplayName("计划任务-线程数量")]
-    // [Description("同时发起操作的最多任务数。例如：2，同时触发2个.strm执行，适用于批量任务。")]
-    // public int MaxConcurrency { get; set; } = 2;
-// 
-    // [DisplayName("计划任务- .strm 访问间隔（秒）")]
-    // [Description(" .strm 调用 FFProbe 的最小间隔（秒），设为 0 表示禁用。例如：A.strm触发访问刷新media info后，B.strm需要2秒后才能继续访问，适用于批量任务。")]
-    // [MinValue(0), MaxValue(60)]
-    // public int BootstrapTaskRateLimitSeconds { get; set; } = 2;
-
-    // [DisplayName("启用孤立文件清理");
-    // [Description("清理不再有对应 .strm 文件的 .medinfo 文件。");
-    // public bool EnableOrphanCleanup { get; set; } = false;
-
-    [DisplayName("上次任务运行时间（UTC）")]
-    [Description("MediaInfo 引导任务上次成功完成的 UTC 时间，用于增量扫描。请谨慎手动修改此值。")]
-    public DateTime? LastBootstrapTaskRun { get; set; } = null; // 初始值为 null
+    [DisplayName("Last Task Run Time (UTC)")]
+    [Description("The UTC time when the MediaInfo Bootstrap Task last completed successfully, used for incremental scanning. Modify this value with caution.")]
+    public DateTime? LastBootstrapTaskRun { get; set; } = null; // Initial value is null
     
-    // --- 二级设置分组 1: 熔断策略 ---
-    [DisplayName("高级设置：熔断策略")]
-    [Description("配置针对 FFProbe 失败的重试与熔断机制，防止服务器因反复尝试损坏文件而过载。")]
+    // --- Secondary Settings Group 1: Circuit Breaker Policy ---
+    [DisplayName("Advanced: Circuit Breaker Policy")]
+    [Description("Configure retry and circuit breaker mechanisms for FFProbe failures to prevent server overload from repeatedly attempting corrupted files.")]
     public ProbeFailureConfig FailureConfig { get; set; } = new ProbeFailureConfig();
 
 
-    // --- 二级设置分组 2: 并发控制 ---
-    [DisplayName("高级设置：计划任务并发")]
-    [Description("配置计划任务（Bootstrap Task）的执行速率和并发度，避免批量处理时阻塞服务器。")]
+    // --- Secondary Settings Group 2: Concurrency Control ---
+    [DisplayName("Advanced: Scheduled Task Concurrency")]
+    [Description("Configure the execution rate and concurrency of the scheduled task (Bootstrap Task) to avoid blocking the server during batch processing.")]
     public ConcurrencyConfig TaskConfig { get; set; } = new ConcurrencyConfig();
     
 }
@@ -70,13 +47,13 @@ public class ProbeFailureConfig : EditableOptionsBase
 {
     public override string EditorTitle => "Probe Failure Settings";
     
-    [DisplayName("FFProbe 最大重试次数")]
-    [Description("当探测失败时，允许的最大自动重试次数。达到此限制后，插件将停止对该文件的自动探测，直到“失败重置时间”过去。")]
+    [DisplayName("FFProbe Max Retries")]
+    [Description("The maximum number of automatic retries allowed when probing fails. After reaching this limit, the plugin will stop automatic probing of the file until the 'failure reset time' has passed.")]
     [MinValue(1), MaxValue(10)]
     public int MaxProbeRetries { get; set; } = 3;
 
-    [DisplayName("FFProbe 失败重置时间 (分钟)")]
-    [Description("当达到最大重试次数后，需要等待多久才能允许再次尝试。防止死循环，允许在一段时间后，自动重置。")]
+    [DisplayName("FFProbe Failure Reset Time (Minutes)")]
+    [Description("How long to wait before allowing retry attempts after reaching the maximum retry count. Prevents infinite loops while allowing automatic reset after a period of time.")]
     [MinValue(1)]
     public int ProbeFailureResetMinutes { get; set; } = 30;
 }
@@ -85,12 +62,12 @@ public class ConcurrencyConfig : EditableOptionsBase
 {
     public override string EditorTitle => "Concurrency Settings";
     
-    [DisplayName("计划任务-线程数量")]
-    [Description("同时发起操作的最多任务数。例如：2，同时触发2个.strm执行，适用于批量任务。")]
+    [DisplayName("Scheduled Task - Thread Count")]
+    [Description("Maximum number of concurrent operations. For example: 2 means triggering 2 .strm executions simultaneously, suitable for batch tasks.")]
     public int MaxConcurrency { get; set; } = 2;
 
-    [DisplayName("计划任务- .strm 访问间隔（秒）")]
-    [Description(" .strm 调用 FFProbe 的最小间隔（秒），设为 0 表示禁用。例如：A.strm触发访问刷新media info后，B.strm需要2秒后才能继续访问，适用于批量任务。")]
+    [DisplayName("Scheduled Task - .strm Access Interval (Seconds)")]
+    [Description("Minimum interval (in seconds) between .strm FFProbe calls. Set to 0 to disable. For example: After A.strm triggers a media info refresh, B.strm must wait 2 seconds before accessing, suitable for batch tasks.")]
     [MinValue(0), MaxValue(60)]
     public int BootstrapTaskRateLimitSeconds { get; set; } = 2;
 }
